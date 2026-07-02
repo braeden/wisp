@@ -35,6 +35,7 @@ lists its **Prerequisites**, exact **Deliverables** (file paths + interfaces),
 | 09 | [Wake word](phases/phase-09-wake-word.md) | 08 | 10, 11 |
 | 10 | [System prompt](phases/phase-10-system-prompt.md) | 04 | anytime |
 | 11 | [Device deploy & debug](phases/phase-11-device-deploy.md) | 01 | anytime after 02 |
+| 12 | [Task memory, fast mode & steering](phases/phase-12-task-memory-fast-mode.md) | 04, 05, 06 | 07, 08 |
 
 ## Handoff / parallelization plan
 
@@ -44,6 +45,10 @@ lists its **Prerequisites**, exact **Deliverables** (file paths + interfaces),
 - **Second fan-out (after 06):** run **07 (overlay) and 08 (voice) in parallel**.
 - **Flexible:** 10 (system prompt) can be drafted anytime after 04; 11 (device
   deploy) anytime after 02; 09 (wake word) last.
+- **Capability extension (after 06):** 12 (learned task memory + fast mode +
+  mid-conversation steering) layers additively onto the 04/05/06 baseline; it
+  extends `llm/`, `data/`, `agent/`, `prompt/` rather than adding an isolated
+  module.
 
 Anything that touches a live device or real Claude API needs the human in the
 loop (device pairing, API key). Those handoff points are flagged in each phase

@@ -67,7 +67,37 @@ Context/economy (model-controllable — satisfies "compact/drop screenshots"):
 - `compact_conversation()` — request server-side compaction / local summary.
 - `note(text)` — write a durable scratch note into the session (survives compaction).
 
+Learned-task memory (persists across sessions — see phase-12):
+- The **Anthropic memory tool** (`memory_20250818`, a `ProviderTool`) is enabled
+  so the agent can `view`/`create`/edit files under `/memories`, executed
+  client-side against our `MemoryStore` (app-private files). The agent records
+  reusable **task recipes** (`/memories/tasks/<slug>.md`) the first time it works
+  out a novel task and reads them back on later sessions — e.g. "set YouTube
+  playback speed to 2x" becomes a cheap replay. A Room `TaskRecipeEntity` indexes
+  these files for UI search/curation. This is the "remember common tasks" seam.
+
 Every tool call and result is emitted on an event bus the overlay subscribes to.
+
+## Extensible tool model
+
+Tools in the seam are a sealed `ToolSpec`: **`ClientTool`** (name + JSON schema +
+`strict?`, executed by our `ToolRouter`) and **`ProviderTool`** (`type` + `name`,
+an Anthropic-provided tool like `memory_20250818`). New Anthropic tools (web
+search/fetch, code execution) drop in as additional `ProviderTool`s without
+changing the seam; the concrete mapping lives only in `llm/anthropic/`.
+
+## Speed & steering (phase-12)
+
+- **Fast mode** — `LlmRequest.speed = FAST` maps to `speed:"fast"` +
+  `fast-mode-2026-02-01` beta on Opus 4.8/4.7 (premium pricing, ~2.5× output
+  tok/s). User-toggleable, session-level (switching speed busts the prompt
+  cache). `usage.speed` is recorded for cost accounting.
+- **Mid-conversation system messages** — appended `{role:system}` turns give
+  operator-level steering without invalidating the cached prefix: barge-in relay
+  (user speaks mid-loop), budget/context warnings, and mode toggles. Strict
+  placement rules apply (after a user/tool_result turn; never between `tool_use`
+  and its `tool_result`). These are transient operator context, never untrusted
+  input.
 
 ## LLM abstraction (model-agnostic; concrete = Claude)
 
