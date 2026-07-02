@@ -1,13 +1,9 @@
 package com.assist.llm
 
 /**
- * A tool advertised to the model. [inputSchemaJson] is a JSON Schema object as a
- * string, kept opaque here so this layer stays serialization-agnostic. The agent
- * (phase-06) owns the concrete tool catalog; the impl marks the last tool def
- * cacheable alongside the system prompt.
+ * Backwards-compatible alias for [ToolSpec.ClientTool] (phase-12). Phase-04/06
+ * code that constructs `ToolDef(name, description, inputSchemaJson)` keeps
+ * compiling — the added `strict` field defaults to `false`. New code may use
+ * [ToolSpec] directly to mix in [ToolSpec.ProviderTool]s.
  */
-data class ToolDef(
-    val name: String,
-    val description: String,
-    val inputSchemaJson: String,
-)
+typealias ToolDef = ToolSpec.ClientTool

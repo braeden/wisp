@@ -9,7 +9,7 @@ data class LlmRequest(
     val model: String,
     val system: List<SystemBlock>,
     val messages: List<LlmMessage>,
-    val tools: List<ToolDef>,
+    val tools: List<ToolSpec>,
     val maxTokens: Int,
     val effort: Effort? = null,
     val thinkingAdaptive: Boolean = true,
@@ -18,4 +18,10 @@ data class LlmRequest(
      * none. Additive; existing call sites are unaffected.
      */
     val contextManagement: ContextManagement? = null,
+    /**
+     * Generation speed (phase-12). [Speed.FAST] enables Anthropic fast mode on
+     * Opus 4.8/4.7 only; the impl degrades to standard otherwise. Session-level
+     * (switching speed busts the prompt cache).
+     */
+    val speed: Speed = Speed.STANDARD,
 )

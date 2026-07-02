@@ -12,4 +12,9 @@ data class LlmResponse(
     val stopReason: String,
     val usage: Usage,
     val content: List<ContentBlock> = emptyList(),
+    /**
+     * Realized generation speed (phase-12): "fast" or "standard", mirrored from
+     * [usage].speed. Null when the provider didn't report it.
+     */
+    val speed: String? = usage.speed,
 )

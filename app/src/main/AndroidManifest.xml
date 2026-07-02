@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Reach the Claude API (phase-04 LLM client / phase-06 agent loop). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Overlay window to show the agent<->user exchange (phase-07). -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Microphone for voice input (phase-08). -->
@@ -63,6 +66,30 @@
                      android:value="on-device AI phone agent overlay" />
              </service>
              =================================================================== -->
+
+        <!-- phase-06 — agent orchestration foreground service. Hosts AgentLoop so
+             tasks survive backgrounding while driving other apps. Shares the FGS
+             with the phase-07 overlay later (single coordinated FGS). -->
+        <service
+            android:name=".agent.AgentService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="on-device AI phone agent" />
+        </service>
+
+        <!-- phase-06 — debug entry point: an `adb am broadcast` of
+             com.assist.DEBUG_RUN with a string `intent` extra starts a session +
+             runs the loop. Debug convenience only. -->
+        <receiver
+            android:name=".agent.DebugRunReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assist.DEBUG_RUN" />
+                <action android:name="com.assist.DEBUG_INTERRUPT" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

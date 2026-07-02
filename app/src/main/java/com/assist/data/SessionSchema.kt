@@ -17,6 +17,13 @@ object MessageRole {
 
     /** A durable system note injected into history (e.g. a compaction summary). */
     const val SYSTEM_NOTE = "system-note"
+
+    /**
+     * A mid-conversation **system turn** (phase-12): operator-level steering
+     * mapped to `{"role":"system"}` in the request. Distinct from [SYSTEM_NOTE],
+     * which is a compaction summary replayed as user context.
+     */
+    const val SYSTEM = "system"
 }
 
 /** Coarse classification of a [MessageEntity], orthogonal to its role. */

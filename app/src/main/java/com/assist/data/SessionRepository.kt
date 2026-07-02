@@ -86,7 +86,11 @@ class SessionRepository(
         content: List<ContentBlock>,
         kind: String = MessageKind.MESSAGE,
     ): MessageEntity {
-        val roleString = if (role == Role.ASSISTANT) MessageRole.ASSISTANT else MessageRole.USER
+        val roleString = when (role) {
+            Role.ASSISTANT -> MessageRole.ASSISTANT
+            Role.SYSTEM -> MessageRole.SYSTEM
+            Role.USER -> MessageRole.USER
+        }
         return insertMessage(sessionId, roleString, content, kind)
     }
 
@@ -183,7 +187,13 @@ class SessionRepository(
             val content = withContext(ioDispatcher) {
                 blocks.map { toContentBlock(it, mediaById) }
             }
-            val role = if (row.role == MessageRole.ASSISTANT) Role.ASSISTANT else Role.USER
+            val role = when (row.role) {
+                MessageRole.ASSISTANT -> Role.ASSISTANT
+                // Transient mid-conversation system turns (phase-12) replay as a
+                // system role; SYSTEM_NOTE (compaction summaries) stay user context.
+                MessageRole.SYSTEM -> Role.SYSTEM
+                else -> Role.USER
+            }
             LlmMessage(role = role, content = content)
         }
     }

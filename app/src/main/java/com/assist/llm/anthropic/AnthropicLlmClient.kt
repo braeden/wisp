@@ -50,7 +50,7 @@ class AnthropicLlmClient(
         val httpRequest = buildHttpRequest(
             path = "/v1/messages",
             body = body.toString(),
-            betas = AnthropicRequestFactory.betaHeaders(request.contextManagement),
+            betas = AnthropicRequestFactory.betaHeaders(request),
         )
         return executeStreaming(httpRequest, onEvent)
     }
@@ -60,7 +60,7 @@ class AnthropicLlmClient(
         val httpRequest = buildHttpRequest(
             path = "/v1/messages/count_tokens",
             body = body.toString(),
-            betas = AnthropicRequestFactory.betaHeaders(request.contextManagement),
+            betas = AnthropicRequestFactory.betaHeaders(request),
         )
         val payload = executeForString(httpRequest)
         val obj = json.parseToJsonElement(payload).jsonObject
@@ -268,6 +268,8 @@ class AnthropicLlmClient(
         outputTokens = usage.intOrNull("output_tokens") ?: prev.outputTokens,
         cacheReadTokens = usage.intOrNull("cache_read_input_tokens") ?: prev.cacheReadTokens,
         cacheWriteTokens = usage.intOrNull("cache_creation_input_tokens") ?: prev.cacheWriteTokens,
+        // Fast mode (phase-12): "fast" | "standard", when the provider reports it.
+        speed = usage.stringOrNull("speed") ?: prev.speed,
     )
 
     private fun mapError(response: Response, body: String): AnthropicException {

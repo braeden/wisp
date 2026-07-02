@@ -10,4 +10,10 @@ data class Usage(
     val outputTokens: Int = 0,
     val cacheReadTokens: Int = 0,
     val cacheWriteTokens: Int = 0,
+    /**
+     * Realized generation speed (phase-12): "fast" or "standard", from the
+     * response's `usage.speed`. Null when the provider didn't report it. Recorded
+     * so cost accounting can price fast usage at the premium multiplier.
+     */
+    val speed: String? = null,
 )

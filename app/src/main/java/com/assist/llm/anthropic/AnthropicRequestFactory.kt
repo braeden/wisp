@@ -6,8 +6,9 @@ import com.assist.llm.Effort
 import com.assist.llm.LlmMessage
 import com.assist.llm.LlmRequest
 import com.assist.llm.Role
+import com.assist.llm.Speed
 import com.assist.llm.SystemBlock
-import com.assist.llm.ToolDef
+import com.assist.llm.ToolSpec
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -27,6 +28,13 @@ import kotlinx.serialization.json.putJsonObject
  */
 internal object AnthropicRequestFactory {
 
+    /**
+     * All beta headers this [request] needs: context-management edits plus
+     * fast-mode (phase-12), deduped.
+     */
+    fun betaHeaders(request: LlmRequest): List<String> =
+        (betaHeaders(request.contextManagement) + fastModeBetas(request)).distinct()
+
     /** Beta headers required for the request's context-management edits, if any. */
     fun betaHeaders(cm: ContextManagement?): List<String> {
         if (cm == null || cm.isEmpty) return emptyList()
@@ -36,11 +44,23 @@ internal object AnthropicRequestFactory {
         return betas
     }
 
+    /** Fast-mode beta header when [fastModeApplies] (phase-12). */
+    fun fastModeBetas(request: LlmRequest): List<String> =
+        if (fastModeApplies(request)) listOf(BETA_FAST_MODE) else emptyList()
+
+    /**
+     * Fast mode is only sent for [Speed.FAST] on Opus 4.8/4.7; on any other model
+     * `speed:"fast"` is a 400, so we degrade to standard silently.
+     */
+    fun fastModeApplies(request: LlmRequest): Boolean =
+        request.speed == Speed.FAST && request.model in FAST_MODE_MODELS
+
     /** Body for `POST /v1/messages`. */
     fun messagesBody(json: Json, request: LlmRequest, stream: Boolean): JsonObject = buildJsonObject {
         put("model", request.model)
         put("max_tokens", request.maxTokens)
         if (stream) put("stream", true)
+        if (fastModeApplies(request)) put("speed", "fast")
         putThinking(request.thinkingAdaptive)
         putEffort(request.effort)
         putSystem(request.system)
@@ -91,15 +111,26 @@ internal object AnthropicRequestFactory {
         }
     }
 
-    private fun JsonObjectBuilder.putTools(json: Json, tools: List<ToolDef>) {
+    private fun JsonObjectBuilder.putTools(json: Json, tools: List<ToolSpec>) {
         if (tools.isEmpty()) return
         val last = tools.lastIndex
         putJsonArray("tools") {
             tools.forEachIndexed { i, tool ->
                 addJsonObject {
-                    put("name", tool.name)
-                    put("description", tool.description)
-                    put("input_schema", json.parseToJsonElement(tool.inputSchemaJson))
+                    when (tool) {
+                        is ToolSpec.ClientTool -> {
+                            put("name", tool.name)
+                            put("description", tool.description)
+                            put("input_schema", json.parseToJsonElement(tool.inputSchemaJson))
+                            if (tool.strict) put("strict", true)
+                        }
+                        // Provider tools (e.g. memory_20250818) are passthrough:
+                        // {type, name}; the provider owns their schema.
+                        is ToolSpec.ProviderTool -> {
+                            put("type", tool.type)
+                            put("name", tool.name)
+                        }
+                    }
                     // Cache the (deterministic) tool prefix.
                     if (i == last) putEphemeralCacheControl()
                 }
@@ -201,8 +232,14 @@ internal object AnthropicRequestFactory {
         get() = when (this) {
             Role.USER -> "user"
             Role.ASSISTANT -> "assistant"
+            // Mid-conversation system turn (phase-12).
+            Role.SYSTEM -> "system"
         }
 
     const val BETA_CONTEXT_MANAGEMENT = "context-management-2025-06-27"
     const val BETA_COMPACT = "compact-2026-01-12"
+    const val BETA_FAST_MODE = "fast-mode-2026-02-01"
+
+    /** Models on which fast mode is accepted (phase-12). */
+    val FAST_MODE_MODELS = setOf("claude-opus-4-8", "claude-opus-4-7")
 }
