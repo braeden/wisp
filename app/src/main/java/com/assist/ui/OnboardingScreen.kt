@@ -121,6 +121,18 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
             ) {
                 Text(stringResource(R.string.start_session))
             }
+
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(
+                        android.content.Intent(context, VoiceTestActivity::class.java),
+                    )
+                },
+                enabled = micOk,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.voice_test_open))
+            }
         }
     }
 }
