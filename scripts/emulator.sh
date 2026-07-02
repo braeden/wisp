@@ -16,7 +16,7 @@ if [[ "${1:-}" == "--headless" ]]; then
 fi
 
 echo ">> booting $AVD_NAME ..."
-"$EMULATOR" -avd "$AVD_NAME" -netdelay none -netspeed full "${extra[@]}" "$@" &
+"$EMULATOR" -avd "$AVD_NAME" -netdelay none -netspeed full ${extra[@]+"${extra[@]}"} "$@" &
 emu_pid=$!
 echo ">> emulator pid $emu_pid; waiting for boot..."
 "$ADB" wait-for-device

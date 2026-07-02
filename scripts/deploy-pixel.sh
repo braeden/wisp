@@ -32,7 +32,7 @@ model="$("$ADB" -s "$serial" shell getprop ro.product.model 2>/dev/null | tr -d 
 echo ">> deploying to $serial${model:+ ($model)}  (JAVA_HOME=$JAVA_HOME)"
 
 # runApp = :app:installDebug then `am start` the launcher (see gradle/device.gradle.kts).
-"$GRADLEW" -p "$ASSIST_ROOT" runApp "${gradle_args[@]}"
+"$GRADLEW" -p "$ASSIST_ROOT" runApp ${gradle_args[@]+"${gradle_args[@]}"}
 echo ">> installed + launched com.assist on $serial"
 
 if [[ "$enable_a11y" -eq 1 ]]; then

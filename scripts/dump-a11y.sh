@@ -32,7 +32,7 @@ echo ">> clearing logcat + firing DEBUG_DUMP_SCREEN on $serial"
 "$ADB" -s "$serial" logcat -c || true
 "$ADB" -s "$serial" shell am broadcast \
   -a com.assist.DEBUG_DUMP_SCREEN \
-  "${extras[@]}" >/dev/null
+  ${extras[@]+"${extras[@]}"} >/dev/null
 
 # The service handles the broadcast on a coroutine; give it a moment to log.
 sleep 2
