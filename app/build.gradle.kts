@@ -5,7 +5,32 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlint)
 }
+
+// --- Release signing --------------------------------------------------------
+// Keystore coordinates are read from environment variables (CI) or Gradle
+// properties (local dev) — never committed. See RELEASE.md.
+//   ASSIST_KEYSTORE_FILE / assistKeystoreFile         path to the .jks/.keystore
+//   ASSIST_KEYSTORE_PASSWORD / assistKeystorePassword store password
+//   ASSIST_KEY_ALIAS / assistKeyAlias                 key alias
+//   ASSIST_KEY_PASSWORD / assistKeyPassword           key password (defaults to
+//                                                     the store password)
+// If none are set, the release build gracefully falls back to the debug signing
+// config so `assembleRelease` still yields an installable (debug-signed) APK.
+// NEVER commit a keystore or password — *.jks / *.keystore are gitignored.
+fun releaseSecret(envName: String, propName: String): String? =
+    System.getenv(envName)?.takeIf { it.isNotBlank() }
+        ?: (project.findProperty(propName) as String?)?.takeIf { it.isNotBlank() }
+
+val releaseStoreFile = releaseSecret("ASSIST_KEYSTORE_FILE", "assistKeystoreFile")
+val releaseStorePassword = releaseSecret("ASSIST_KEYSTORE_PASSWORD", "assistKeystorePassword")
+val releaseKeyAlias = releaseSecret("ASSIST_KEY_ALIAS", "assistKeyAlias")
+val releaseKeyPassword =
+    releaseSecret("ASSIST_KEY_PASSWORD", "assistKeyPassword") ?: releaseStorePassword
+val hasReleaseSigning =
+    releaseStoreFile != null && releaseStorePassword != null && releaseKeyAlias != null
 
 android {
     namespace = "com.assist"
@@ -30,6 +55,17 @@ android {
         buildConfigField("String", "ANTHROPIC_API_KEY", "\"$anthropicApiKey\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -37,7 +73,25 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Real release keystore when configured, else debug-signed so the
+            // sideload APK still installs locally (see RELEASE.md).
+            signingConfig =
+                if (hasReleaseSigning) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
         }
+    }
+
+    lint {
+        // Existing warnings are grandfathered via lint-baseline.xml; only *new*
+        // errors abort the build. Not treating warnings as errors keeps the
+        // sideload/dev loop unblocked while still gating regressions.
+        warningsAsErrors = false
+        abortOnError = true
+        checkDependencies = true
+        baseline = file("lint-baseline.xml")
     }
 
     compileOptions {
@@ -69,6 +123,31 @@ android {
 // the CREATE statements the numbered migrations must mirror.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// --- Static analysis / formatting -------------------------------------------
+// detekt + ktlint gate *new* code via committed baselines (config/detekt/
+// baseline.xml, config/detekt/detekt-baseline.xml for ktlint is generated under
+// build/). Existing code is grandfathered — do not mass-reformat. Update a
+// baseline with `./gradlew detektBaseline` / `./gradlew ktlintGenerateBaseline`.
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    baseline = file("$rootDir/config/detekt/baseline.xml")
+    // Fast, no type-resolution pass. To enable type-aware rules later, run the
+    // `detektMain` task (needs the compile classpath) instead of `detekt`.
+    parallel = true
+}
+
+ktlint {
+    version.set("1.3.1")
+    android.set(true)
+    // .editorconfig at the repo root is the source of truth for style.
+    baseline.set(file("$rootDir/config/ktlint/baseline.xml"))
+    filter {
+        exclude { it.file.path.contains("/generated/") }
+        exclude { it.file.path.contains("/build/") }
+    }
 }
 
 dependencies {

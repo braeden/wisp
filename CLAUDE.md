@@ -326,9 +326,39 @@ Feasibility confirmed; decisions locked (`.claude/phases/phase-00-decisions.md`)
   on-device: Sessions lists the real run ("…2 minute timer · 15 msgs · $0.17"),
   transcript + Context&cost panel render.
 
+### Phase 13 — CI & infra + signed release APK ✅ (on worktree)
+- **Signed release APK (primary goal — no USB / no adb install path):**
+  `app/build.gradle.kts` now has a `signingConfigs.release` that reads
+  `ASSIST_KEYSTORE_FILE`/`ASSIST_KEYSTORE_PASSWORD`/`ASSIST_KEY_ALIAS`/
+  `ASSIST_KEY_PASSWORD` from env vars **or** Gradle props (`assistKeystoreFile`…);
+  CI decodes `ASSIST_KEYSTORE_BASE64`→file. Wired into `buildTypes.release`; if no
+  secrets set it **falls back to the debug keystore** so `assembleRelease` always
+  yields an installable APK. `isMinifyEnabled=false` kept. No `ANTHROPIC_API_KEY`
+  baked into release (ships empty; read at runtime). Verified both paths locally:
+  debug-fallback APK verifies as `CN=Android Debug`; with env vars set it verifies
+  as the custom keystore cert. **`RELEASE.md`** documents keytool + base64 + the
+  exact GitHub secrets + tag-to-install flow; `DEVICE.md` §9 updated.
+- **GitHub Actions** (`.github/workflows/`): `ci.yml` (push `main` + PR → JDK17,
+  Gradle cache, `assembleDebug testDebugUnitTest lintDebug detekt ktlintCheck`,
+  uploads reports on failure); `release.yml` (`workflow_dispatch` + `v*` tag →
+  signed `assembleRelease`, uploads `assist-<version>.apk` artifact + attaches to
+  a GitHub Release on tags). `.github/dependabot.yml` (gradle + actions, weekly).
+- **Static analysis (baselined — no reformat):** detekt 1.23.7
+  (`config/detekt/detekt.yml` + `baseline.xml`) and ktlint plugin 12.1.1 / ktlint
+  1.3.1 (`config/ktlint/baseline.xml`, root `.editorconfig`) added via the version
+  catalog + applied in `:app`; both fold into `./gradlew check`. Android Lint block
+  (`abortOnError`, `checkDependencies`, `app/lint-baseline.xml` — 52 grandfathered
+  warnings). Room schema export + `1→2` migration test already landed in phase-12
+  (left as-is).
+- **Verified:** `assembleDebug`, `testDebugUnitTest` (163 tests), `detekt`,
+  `ktlintCheck`, `lintDebug`, `./gradlew check`, and `assembleRelease` all green
+  locally. No app source/logic touched (infra only).
+- **Human checkpoint:** to get *real* signed releases (not debug-fallback), the
+  user must create the 4 `ASSIST_*` GitHub secrets (+ optional `ASSIST_KEYSTORE_BASE64`)
+  and keep the keystore (see RELEASE.md). CI emulator job / `ANTHROPIC_API_KEY`
+  secret left out by design.
+
 ### Next
-- **Phase 13 — CI & infra** (spec in `.claude/phases/phase-13-ci-infra.md`): now
-  clear to run (12 has landed; build files + Room schema are settled).
 - **Phase 09 (wake word)** — Porcupine/openWakeWord `WakeWordDetector` in an FGS,
   coordinated via the shared `AudioSessionArbiter`.
 - **Follow-ups:** unify `AgentService`+`OverlayService` into one coordinated FGS;

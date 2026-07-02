@@ -99,17 +99,62 @@ Full first-run walkthrough — pairing a fresh phone, the human permission grant
 (Accessibility, Display over other apps, mic, notifications), the real-app
 validation checklist, and crash symbolication — is in **[`DEVICE.md`](DEVICE.md)**.
 
+## Developer / CI
+
+Static analysis, formatting, and Android Lint gate the codebase. Existing code is
+grandfathered via committed **baselines** so only *new* violations fail — do not
+mass-reformat.
+
+```bash
+./gradlew check          # unit tests + lintDebug + detekt + ktlintCheck (all baselined)
+
+# individually:
+./gradlew testDebugUnitTest
+./gradlew detekt         # static analysis (config/detekt/detekt.yml)
+./gradlew ktlintCheck    # formatting vs. .editorconfig
+./gradlew ktlintFormat   # auto-fix formatting
+./gradlew lintDebug      # Android Lint (app/lint-baseline.xml)
+```
+
+Updating a baseline after intentional changes:
+
+```bash
+./gradlew detektBaseline          # -> config/detekt/baseline.xml
+./gradlew ktlintGenerateBaseline  # -> config/ktlint/baseline.xml
+./gradlew updateLintBaseline      # -> app/lint-baseline.xml
+```
+
+**GitHub Actions** (`.github/workflows/`):
+- `ci.yml` — on push to `main` + every PR: `assembleDebug testDebugUnitTest
+  lintDebug detekt ktlintCheck` on JDK 17 / Ubuntu.
+- `release.yml` — builds a **signed release APK** (downloadable, tap-to-install,
+  no USB). See **[`RELEASE.md`](RELEASE.md)**.
+
+Room exports its schema to `app/schemas/` (`exportSchema = true`); a
+`MigrationTestHelper`-style `1→2` migration test lives in
+`app/src/test/.../AssistDatabaseMigrationTest.kt`.
+
 ## Secrets
 
 The Anthropic API key is entered in-app and stored in
 `EncryptedSharedPreferences` (phase-02). For automated real-model tests it is
 read from the `ANTHROPIC_API_KEY` env var and is never committed.
 
+Release signing reads its keystore + passwords from env vars / Gradle properties
+(`ASSIST_KEYSTORE_FILE`, `ASSIST_KEYSTORE_PASSWORD`, `ASSIST_KEY_ALIAS`,
+`ASSIST_KEY_PASSWORD`) — never committed; `*.jks` / `*.keystore` are gitignored.
+No release keystore configured → `assembleRelease` falls back to debug signing.
+Full keystore + GitHub-secrets walkthrough in **[`RELEASE.md`](RELEASE.md)**.
+
 ## Repo layout
 
 ```
-.claude/    design docs + phased implementation plan (source of truth)
-scripts/    build/debug self-loop (env.sh is the shared resolver)
-app/        the Android app module (from phase-02)
-CLAUDE.md   running progress log
+.claude/            design docs + phased implementation plan (source of truth)
+.github/workflows/  CI + signed-release-APK GitHub Actions
+config/             detekt + ktlint config & baselines
+scripts/            build/debug self-loop (env.sh is the shared resolver)
+app/                the Android app module (from phase-02)
+CLAUDE.md           running progress log
+DEVICE.md           on-device first-run walkthrough
+RELEASE.md          signed APK / no-USB install path
 ```

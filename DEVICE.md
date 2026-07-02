@@ -233,20 +233,20 @@ build: `scripts/deploy-pixel.sh` ships it, signed with the default per-machine
 to configure, and reinstalls-over-the-top just work because the signer is stable
 per machine.
 
-If you want a **personal release keystore** (e.g. a stable identity across
-machines, or to try `release` with minify):
+**Signed release APK (no USB / no adb).** The repo now has a real release
+signing config in `app/build.gradle.kts` that reads its keystore + passwords from
+env vars / Gradle properties (never committed), plus a GitHub Actions workflow
+that produces a **signed, downloadable** APK you install by tapping it on the
+phone. The full walkthrough — generating a keystore, the GitHub secrets to set,
+and cutting a tagged release — is in **[`RELEASE.md`](RELEASE.md)**.
 
-```bash
-keytool -genkey -v -keystore assist-release.jks -alias assist \
-  -keyalg RSA -keysize 2048 -validity 10000
-```
-
-Keep it **out of git** — `*.jks` / `*.keystore` are already in `.gitignore`. Wire
-it into `app/build.gradle.kts` via a `signingConfigs { create("release") { … } }`
-that reads the passwords from `~/.gradle/gradle.properties` or env vars (never
-hardcode secrets), and attach it to the `release` buildType. This repo ships
-without a release signing config on purpose, so a clean checkout builds with zero
-secrets.
+If **no** release keystore is configured (none of the `ASSIST_KEYSTORE_*` env
+vars set), `assembleRelease` gracefully falls back to the **debug keystore** so a
+clean checkout still builds an installable APK with zero secrets. Note the
+tradeoff: a debug-signed build has a different signing identity than a
+release-keystore build, so switching between them forces an
+uninstall/reinstall (and loses app data). Once you pick a release keystore, keep
+it (see RELEASE.md).
 
 <a name="troubleshooting"></a>
 ## Troubleshooting
