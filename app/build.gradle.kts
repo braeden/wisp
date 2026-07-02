@@ -57,6 +57,10 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            // Unmocked framework calls (e.g. android.util.Log) return defaults
+            // instead of throwing, so framework-free logic can be unit-tested
+            // without Robolectric.
+            isReturnDefaultValues = true
         }
     }
 }

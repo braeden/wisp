@@ -38,6 +38,13 @@
             </intent-filter>
         </activity>
 
+        <!-- phase-08 — manual voice test screen (say / listen / push-to-talk / run). -->
+        <activity
+            android:name=".ui.VoiceTestActivity"
+            android:exported="false"
+            android:label="@string/voice_test_title"
+            android:theme="@style/Theme.Assist" />
+
         <!-- phase-03 — AccessibilityService (screen perception + gestures). -->
         <service
             android:name=".service.AssistAccessibilityService"

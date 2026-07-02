@@ -216,10 +216,55 @@ Feasibility confirmed; decisions locked (`.claude/phases/phase-00-decisions.md`)
   implicit broadcast is dropped on API 35. Reinstalling also unbinds the
   accessibility service — re-enable it before an e2e run.
 
+### Phase 08 — Voice I/O + Interruptibility ✅ (on worktree; device checkpoint pending)
+- **Swappable seam** (`com.assist.voice`, from `.claude/voice-architecture.md`):
+  `SttEngine` (+`SttEvent`/`SttResult`/`SttConfig`/`SttError`/`SttException`),
+  `TtsEngine` (+`TtsEvent`/`SpeakOptions`/`VoiceInfo`), `AudioSessionArbiter`+
+  `MicOwner`, `VoiceProvider`+`VoiceProviderKind`, `WakeWordDetector` (declared for
+  phase-09; provider returns null), `TypedReplySource` (phase-07 hook). No backend
+  types leak past the interfaces.
+- **`android` provider** (`voice/android`, `id="android"`, `kind=PIPELINE`):
+  `AndroidSttEngine` over `SpeechRecognizer` — prefers `createOnDeviceSpeechRecognizer`
+  (API 31+) + `EXTRA_PREFER_OFFLINE`, all calls marshaled to the main thread,
+  `transcribeOnce()` (for `ask`) + `stream():Flow<SttEvent>` (partials/rms/endpoint);
+  `AndroidTtsEngine` over `TextToSpeech` — init gated on `OnInitListener` SUCCESS,
+  `say()` suspends to `onDone` via `UtteranceProgressListener`, coroutine-cancel →
+  `stop()` (barge-in), `USAGE_ASSISTANT` + transient-duck audio focus, `onRangeStart`
+  → `TtsEvent.Range` for caption sync; `AndroidVoiceProvider` bundles them.
+  `SttErrorMapper` (framework-free `ERROR_*`→`SttError`), `AudioFocus` helper.
+- **`DefaultAudioSessionArbiter`** — framework-free, one mic owner; higher priority
+  (`BARGE_IN>LISTEN_ONCE>WAKE_WORD`) preempts (cancels the holder's block), equal/
+  lower parks on release + retries. **`BargeInDetector`** — `AudioRecord`+`EnergyVad`
+  gate while TTS plays → `tts.stop()`+`agentLoop.interrupt()`+`transcribeOnce()` at
+  `BARGE_IN`, redirect via callback (device-only).
+- **`VoiceUserIo : UserIo`** (the real impl): `say`→TTS (emits `Speaking`),
+  `ask`→say then `transcribeOnce` at `LISTEN_ONCE` (emits `Listening`); optional
+  `TypedReplySource` races typed vs. spoken (phase-07); recognition failures degrade
+  to an empty answer (loop never crashes).
+- **DI collision resolved:** removed `provideUserIo` from `AgentModule`; new
+  `di/VoiceModule.kt` binds `VoiceUserIo`→`UserIo` (+ engines, arbiter, provider,
+  barge-in detector). `LoggingUserIo` kept as a headless/test fallback. `AppModule`
+  untouched.
+- **Manual test screen** (`ui/VoiceTestActivity`+`VoiceTestScreen`+`VoiceTestViewModel`):
+  say / listen-once / hold-to-talk (push-to-talk) / run-a-task, reachable from the
+  onboarding "Voice test" button (mic-gated). Exercises voice without wake-word.
+- **Verified:** `:app:assembleDebug` + `:app:testDebugUnitTest` green (**104 tests**,
+  +25: `SttErrorMapper` 10, `EnergyVad` 6, `DefaultAudioSessionArbiter` 4,
+  `VoiceUserIo` 5 vs. fakes). `installDebug` + launch on `emulator-5554` clean — the
+  7-module Hilt graph (App/Service/Llm/Data/Agent/Prompt/**Voice**) resolves, no
+  duplicate-binding crash. Enabled `unitTests.isReturnDefaultValues` so framework-free
+  logic tests run without Robolectric.
+- **Deferred to device checkpoint:** live STT/TTS + real barge-in (emulator mic/STT
+  unreliable). **Seam gaps for consumers:** phase-07 binds a `TypedReplySource` +
+  drives captions off `TtsEvent.Range`/`SttEvent.Partial` + the overlay mic button;
+  phase-09 implements `WakeWordDetector` and routes wake/listen/barge-in through the
+  shared `AudioSessionArbiter`.
+
 ### Next
-- **Phase 07 (overlay)** and **08 (voice)** run in parallel — both consume
-  `AgentEventBus`; 08 provides the real `UserIo` + implements the `android`
-  `VoiceProvider` from `.claude/voice-architecture.md`.
+- **Phase 07 (overlay)** runs in parallel with 08 — both consume `AgentEventBus`;
+  wire the overlay mic button + typed-reply `TypedReplySource` into `VoiceUserIo`.
+- **Phase 09 (wake word)** — Porcupine/openWakeWord `WakeWordDetector` in an FGS,
+  coordinated via `AudioSessionArbiter`.
 - **Phase 12** (task memory / fast-mode UI / `SessionSteering` barge-in) queued as a
   follow-on building on the seams landed in 06.
 
