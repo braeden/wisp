@@ -7,6 +7,14 @@ like Siri/Google/ChatGPT voice.
 **Prerequisites:** phase-06 (`UserIo` interface, `AgentLoop.interrupt`,
 `AgentEventBus`). **Parallelizable with 07.** Owns `com.assist.voice`.
 
+**Design reference:** [`../voice-architecture.md`](../voice-architecture.md) —
+the swappable STT/TTS/wake seam and the SpeechRecognizer/TextToSpeech findings.
+Implement the **`android` `VoiceProvider`** (SpeechRecognizer `SttEngine` +
+TextToSpeech `TtsEngine` + `AudioSessionArbiter`); keep every backend behind the
+interfaces there so cloud/OpenAI-realtime/on-device engines swap in later.
+The `Speaker`/`Listener` below are the `android`-provider impls of
+`TtsEngine`/`SttEngine`.
+
 ## Deliverables
 1. **TTS `Speaker`** — wraps `TextToSpeech`; `suspend fun say(text)` that resolves
    when playback finishes; `stop()` for barge-in; emits `Speaking` start/stop to

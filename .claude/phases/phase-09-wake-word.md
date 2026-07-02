@@ -6,6 +6,14 @@ Siri/Google/Alexa. Explicitly optional / later — build behind a setting.
 **Prerequisites:** phase-08 (voice pipeline, `Listener`, audio focus).
 **Parallelizable with 10/11.** Owns wake-word code in `com.assist.voice`.
 
+**Design reference:** [`../voice-architecture.md`](../voice-architecture.md) —
+implement the **`WakeWordDetector`** seam (own `AudioRecord` tap, NOT
+`SpeechRecognizer`, which is single-shot and unfit for always-on) and route all
+mic access through the shared `AudioSessionArbiter`. Note: OS always-on hotword
+(`AlwaysOnHotwordDetector`/`VoiceInteractionService`) is reserved for the default
+assistant role — unavailable to a sideloaded app — which is why a dedicated
+on-device detector (Porcupine default) is required.
+
 ## Options (pick one; document the choice + licensing)
 - **Picovoice Porcupine** — on-device, small, reliable, custom keywords; check
   licensing for personal/sideload use. Recommended default.
