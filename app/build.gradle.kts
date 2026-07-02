@@ -19,6 +19,15 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Injected for the opt-in real-Claude smoke test (androidTest). Reads the
+        // `anthropicApiKey` Gradle property or ANTHROPIC_API_KEY env var; defaults
+        // to empty so the smoke test skips cleanly when no key is present. NEVER
+        // commit a key — this is resolved at build time from the environment only.
+        val anthropicApiKey = (project.findProperty("anthropicApiKey") as String?)
+            ?: System.getenv("ANTHROPIC_API_KEY")
+            ?: ""
+        buildConfigField("String", "ANTHROPIC_API_KEY", "\"$anthropicApiKey\"")
     }
 
     buildTypes {
@@ -42,6 +51,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {
@@ -81,6 +91,9 @@ dependencies {
     // Secrets
     implementation(libs.androidx.security.crypto)
 
+    // HTTP transport for the Claude client (phase-04)
+    implementation(libs.okhttp)
+
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
@@ -88,4 +101,10 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)
+
+    // Instrumented (real-Claude smoke test lives in androidTest)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }
