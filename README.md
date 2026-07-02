@@ -75,9 +75,29 @@ scripts/enable-service.sh        # device: opens Settings for a manual toggle
 | Accessibility toggle on locked devices | `scripts/enable-service.sh` | Device-vs-emulator branching |
 | JDK/SDK/device resolution | `scripts/env.sh` | Shared bootstrap for the above |
 
-Target a physical **Pixel 7 Pro** instead of the emulator by enabling USB
-debugging and `export ANDROID_SERIAL=<serial>` (see `scripts/devices.sh`). Full
-device deploy/debug workflow: [`.claude/phases/phase-11-device-deploy.md`](.claude/phases/phase-11-device-deploy.md).
+### On a physical Pixel 7 Pro
+
+Deploy to the phone (not just the emulator) in one command:
+
+```bash
+scripts/devices.sh                     # list/select — copy the export line
+export ANDROID_SERIAL=<pixel-serial>   # only if >1 device attached
+scripts/deploy-pixel.sh                # build + install + launch on the phone
+```
+
+Device-specific helpers (all honor `ANDROID_SERIAL`, write to gitignored `captures/`):
+
+| Script | Purpose |
+|---|---|
+| `scripts/deploy-pixel.sh` | One-command build + install + launch (`--a11y` opens Accessibility settings after). |
+| `scripts/pair-device.sh` | Wi-Fi pairing/connect (`pair`/`connect`/`usb`) for wireless debugging. |
+| `scripts/dump-a11y.sh` | Trigger the phase-03 screen dump on device (perception check). |
+| `scripts/screenshot.sh` | Pull a PNG screenshot for inspection. |
+| `scripts/bugreport.sh` | Capture a bugreport zip / ANR traces / logcat snapshot. |
+
+Full first-run walkthrough — pairing a fresh phone, the human permission grants
+(Accessibility, Display over other apps, mic, notifications), the real-app
+validation checklist, and crash symbolication — is in **[`DEVICE.md`](DEVICE.md)**.
 
 ## Secrets
 
