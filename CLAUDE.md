@@ -126,16 +126,27 @@ Feasibility confirmed; decisions locked (`.claude/phases/phase-00-decisions.md`)
   launches on `pixel7pro_api35` with the merged Hilt graph (4 modules), no DI/
   runtime crash.
 
+### Phase 04 live smoke test ✅ (human checkpoint cleared)
+- Ran `:app:connectedDebugAndroidTest` for `AnthropicSmokeTest` against the real
+  Claude API on `pixel7pro_api35`: **3/3 pass** (text streaming, tool-use
+  round-trip, vision) — `tests=3 failures=0 errors=0 skipped=0`.
+- **Bug caught + fixed:** the manifest never declared `INTERNET` — every network
+  call was denied (`SecurityException`). Added `INTERNET` +
+  `ACCESS_NETWORK_STATE`.
+- **Emulator gotcha:** the running AVD had a dead DNS proxy (`UnknownHostException`
+  though raw-IP ping worked). Fix = relaunch with `-dns-server 8.8.8.8,8.8.4.4`.
+
 ### Next
-- **Human checkpoint:** run the phase-04 live smoke test with a real
-  `ANTHROPIC_API_KEY` (text + tool-use + vision turns) to confirm the Claude
-  client against the API.
-- **Phase 06 — agent orchestration loop** (integration phase): wire
+- **Phase 06 — agent orchestration loop** (integration spine): wire
   `DeviceController` (03) + `LlmClient`/`ModelRouter` (04) + `SessionRepository`
-  (05) into the tool-router + agent loop. Defines the `AgentTool` catalog and the
-  safety confirmation gates.
-- **Phase 12** (task memory / fast mode / steering) queued as a follow-on
-  extension after 06 (design in `.claude/phases/phase-12-*`).
+  (05) into the tool-router + agent loop. Defines the tool catalog + safety gates.
+  **Decision:** fold Phase 12's *seams* into 06 (build the loop on an extensible
+  `ToolSpec` interface + `Role.SYSTEM`/`speed`/steering+memory hooks) so 12 layers
+  on without rewriting 06's core. 12's *feature payload* (MemoryStore + TaskRecipe
+  index, fast-mode toggle UI + cost rows, `SessionSteering` helpers) stays a
+  follow-on.
+- **Parallel with the spine:** Phase 10 (system prompt, `prompt/`) and Phase 11
+  (device deploy, scripts/docs) — independent packages, no file overlap.
 
 ## Notes / gotchas
 - Homebrew `openjdk@17` won't bottle on this machine (needs full Xcode); used a
