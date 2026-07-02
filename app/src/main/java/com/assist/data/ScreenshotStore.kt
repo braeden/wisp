@@ -25,6 +25,11 @@ class ScreenshotStore(private val baseDir: File) {
     /** Read the bytes at [path], or null if the file is missing. */
     fun readBytes(path: String): ByteArray? = File(path).takeIf { it.exists() }?.readBytes()
 
+    /** Delete all screenshot files for [sessionId] (used when deleting a session). */
+    fun deleteSession(sessionId: Long) {
+        File(baseDir, "$SUBDIR/session_$sessionId").deleteRecursively()
+    }
+
     private companion object {
         const val SUBDIR = "screenshots"
     }

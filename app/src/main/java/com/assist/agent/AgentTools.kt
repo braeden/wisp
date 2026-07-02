@@ -9,9 +9,10 @@ import com.assist.llm.ToolSpec
  * marked `strict` so the provider enforces the argument schema. [ToolRouter]
  * executes each by [name]; keep the names here and there in lockstep.
  *
- * Provider tools (e.g. the memory tool, `ToolSpec.ProviderTool`) are intentionally
- * NOT in the active catalog yet — the seam supports them (phase-12) but memory
- * execution is a follow-on.
+ * The learned-task memory tool (phase-12) is advertised as a
+ * [ToolSpec.ProviderTool] (`memory_20250818`, name `memory`); Anthropic owns its
+ * schema and injects the "always view your memory first" protocol. [ToolRouter]
+ * executes `memory` `tool_use` blocks against `MemoryStore`.
  */
 object AgentTools {
 
@@ -39,6 +40,10 @@ object AgentTools {
     const val DROP_OLD_SCREENSHOTS = "drop_old_screenshots"
     const val COMPACT_CONVERSATION = "compact_conversation"
     const val NOTE = "note"
+
+    // Learned task memory (provider tool — Anthropic-owned schema)
+    const val MEMORY = "memory"
+    const val MEMORY_TYPE = "memory_20250818"
 
     /** The full catalog advertised to the model, in a stable order (cache-friendly). */
     fun catalog(): List<ToolSpec> = listOf(
@@ -195,6 +200,8 @@ object AgentTools {
             "Write a durable scratch note into the session (survives compaction).",
             objectSchema(required = listOf("text"), props = """"text":{"type":"string"}"""),
         ),
+        // --- Learned task memory (provider tool) ---
+        ToolSpec.ProviderTool(type = MEMORY_TYPE, name = MEMORY),
     )
 
     private fun client(

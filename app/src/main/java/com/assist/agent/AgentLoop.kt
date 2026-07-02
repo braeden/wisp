@@ -2,6 +2,7 @@ package com.assist.agent
 
 import android.util.Log
 import com.assist.data.SessionRepository
+import com.assist.data.SettingsStore
 import com.assist.di.AppScope
 import com.assist.llm.ContentBlock
 import com.assist.llm.ContextManagement
@@ -52,6 +53,7 @@ class AgentLoop @Inject constructor(
     private val userIo: UserIo,
     private val promptProvider: SystemPromptProvider,
     private val screenChangeSignals: ScreenChangeSignals,
+    private val settings: SettingsStore,
     private val json: Json,
     @AppScope private val scope: CoroutineScope,
 ) {
@@ -112,6 +114,9 @@ class AgentLoop @Inject constructor(
 
         val tools = AgentTools.catalog()
         val toolNames = tools.map { it.name }
+        // Fast mode is session-level (switching speed busts the prompt cache), so
+        // read the pref once at the start of the run.
+        val speed = if (settings.isFastModeEnabled()) Speed.FAST else Speed.STANDARD
         var pendingContext: ContextManagement? = null
         val progress = NoProgressTracker()
         var step = 0
@@ -136,7 +141,7 @@ class AgentLoop @Inject constructor(
                 effort = Effort.MEDIUM,
                 thinkingAdaptive = true,
                 contextManagement = pendingContext,
-                speed = Speed.STANDARD,
+                speed = speed,
             )
             pendingContext = null
 

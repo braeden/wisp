@@ -3,9 +3,11 @@ package com.assist.agent
 import android.graphics.Bitmap
 import android.util.Log
 import com.assist.data.SessionRepository
+import com.assist.data.TaskMemoryRepository
 import com.assist.llm.ContentBlock
 import com.assist.llm.ContextManagement
 import com.assist.llm.ToolCall
+import com.assist.memory.MemoryStore
 import com.assist.service.DeviceController
 import com.assist.service.DeviceKey
 import com.assist.service.ScreenState
@@ -37,6 +39,8 @@ class ToolRouter @Inject constructor(
     private val device: DeviceController,
     private val repository: SessionRepository,
     private val userIo: UserIo,
+    private val memoryStore: MemoryStore,
+    private val taskMemory: TaskMemoryRepository,
     private val json: Json,
 ) {
 
@@ -63,6 +67,7 @@ class ToolRouter @Inject constructor(
                 AgentTools.DROP_OLD_SCREENSHOTS -> dropOldScreenshots(sessionId, call, args)
                 AgentTools.COMPACT_CONVERSATION -> compact(sessionId, call)
                 AgentTools.NOTE -> note(sessionId, call, args)
+                AgentTools.MEMORY -> memory(call)
                 else -> error(call, "Unknown tool '${call.name}'")
             }
         } catch (t: Throwable) {
@@ -207,6 +212,36 @@ class ToolRouter @Inject constructor(
         val text = args.str("text")
         repository.addNote(sessionId, text)
         return textResultExec(call, "noted", "ok")
+    }
+
+    // --- Learned task memory (provider tool) --------------------------------
+
+    /**
+     * Execute an Anthropic memory `tool_use` against [MemoryStore] and return its
+     * result verbatim. On a successful mutation of a `/memories/tasks/<slug>.md`
+     * recipe, refresh the [TaskMemoryRepository] index so the UI/recall stays in
+     * sync. The `input` object is Anthropic-owned (command + path/args).
+     */
+    private suspend fun memory(call: ToolCall): ToolExecution {
+        val input = runCatching { json.parseToJsonElement(call.argumentsJson).jsonObject }.getOrNull()
+        if (input == null) {
+            return ToolExecution(
+                resultBlock = textResult(call, "Error: invalid memory command", isError = true),
+                success = false,
+                message = "memory: bad input",
+            )
+        }
+        val result = withContext(Dispatchers.IO) { memoryStore.execute(input) }
+        if (!result.isError) {
+            runCatching { taskMemory.onMemoryMutation(input) }
+                .onFailure { Log.w(TAG, "recipe index update failed", it) }
+        }
+        val command = input["command"]?.jsonPrimitive?.content ?: "memory"
+        return ToolExecution(
+            resultBlock = textResult(call, result.content, isError = result.isError),
+            success = !result.isError,
+            message = "memory $command ${if (result.isError) "error" else "ok"}",
+        )
     }
 
     // --- Result helpers -----------------------------------------------------

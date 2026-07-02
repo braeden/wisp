@@ -198,6 +198,103 @@ class SessionRepository(
         }
     }
 
+    // --- Read models for the session-management UI (phase-12) --------------
+
+    /** Sessions with message count + running cost, most-recent first. */
+    fun observeSessionSummaries(): Flow<List<SessionSummary>> = sessions.observeSummaries()
+
+    /** Observe a single session row (for the detail header). */
+    fun observeSession(sessionId: Long): Flow<SessionEntity?> = sessions.observeById(sessionId)
+
+    /** Observe a session's messages (drives transcript re-render). */
+    fun observeMessages(sessionId: Long): Flow<List<MessageEntity>> = messages.observeForSession(sessionId)
+
+    /** Recorded tool calls for a session, oldest first. */
+    suspend fun listToolCalls(sessionId: Long): List<ToolCallEntity> = toolCalls.getForSession(sessionId)
+
+    /**
+     * Decode the full conversation into a UI-friendly [TranscriptMessage] list
+     * (text/thinking/tool_use/tool_result/image), honoring dropped screenshots.
+     */
+    suspend fun getTranscript(sessionId: Long): List<TranscriptMessage> {
+        val rows = messages.getForSession(sessionId)
+        val mediaById = media.getForSession(sessionId).associateBy { it.id }
+        return rows.map { row ->
+            val blocks = MessageContentCodec.decode(row.contentJson).map { toTranscriptBlock(it, mediaById) }
+            TranscriptMessage(
+                id = row.id,
+                seq = row.seq,
+                role = transcriptRole(row.role, row.kind),
+                kind = row.kind,
+                createdAt = row.createdAt,
+                blocks = blocks,
+            )
+        }
+    }
+
+    /** Per-model token/cost totals for a session's usage rows. */
+    suspend fun aggregateUsage(sessionId: Long): UsageSummary {
+        val rows = usage.getForSession(sessionId)
+        val perModel = rows.groupBy { it.model }.map { (model, list) ->
+            ModelUsage(
+                model = model,
+                inputTokens = list.sumOf { it.inputTokens },
+                outputTokens = list.sumOf { it.outputTokens },
+                cacheReadTokens = list.sumOf { it.cacheReadTokens },
+                cacheWriteTokens = list.sumOf { it.cacheWriteTokens },
+                costUsd = list.sumOf { it.costUsd },
+                turns = list.size,
+            )
+        }.sortedByDescending { it.costUsd }
+        return UsageSummary(
+            totalCostUsd = rows.sumOf { it.costUsd },
+            totalInputTokens = rows.sumOf { it.inputTokens },
+            totalOutputTokens = rows.sumOf { it.outputTokens },
+            totalCacheReadTokens = rows.sumOf { it.cacheReadTokens },
+            totalCacheWriteTokens = rows.sumOf { it.cacheWriteTokens },
+            perModel = perModel,
+        )
+    }
+
+    /** Delete a session (cascades rows) plus its screenshot files on disk. */
+    suspend fun deleteSession(sessionId: Long) {
+        withContext(ioDispatcher) { screenshotStore.deleteSession(sessionId) }
+        sessions.deleteById(sessionId)
+    }
+
+    private fun transcriptRole(role: String, kind: String): TranscriptRole = when {
+        role == MessageRole.ASSISTANT -> TranscriptRole.ASSISTANT
+        role == MessageRole.SYSTEM -> TranscriptRole.SYSTEM
+        role == MessageRole.SYSTEM_NOTE -> TranscriptRole.SYSTEM_NOTE
+        kind == MessageKind.TOOL_RESULT -> TranscriptRole.TOOL_RESULT
+        else -> TranscriptRole.USER
+    }
+
+    private fun toTranscriptBlock(
+        block: StoredBlock,
+        mediaById: Map<Long, MediaEntity>,
+    ): TranscriptBlock = when (block) {
+        is StoredBlock.Text -> TranscriptBlock.Text(block.text)
+        is StoredBlock.Thinking -> TranscriptBlock.Thinking(block.text)
+        is StoredBlock.ToolUse -> TranscriptBlock.ToolUse(block.id, block.name, block.inputJson)
+        is StoredBlock.ToolResult -> TranscriptBlock.ToolResult(
+            toolUseId = block.toolUseId,
+            text = storedToText(block.content),
+            isError = block.isError,
+        )
+        is StoredBlock.ImageRef -> TranscriptBlock.Image(dropped = mediaById[block.mediaId]?.dropped ?: true)
+    }
+
+    private fun storedToText(blocks: List<StoredBlock>): String = blocks.joinToString("\n") {
+        when (it) {
+            is StoredBlock.Text -> it.text
+            is StoredBlock.Thinking -> it.text
+            is StoredBlock.ToolUse -> "${it.name}(${it.inputJson})"
+            is StoredBlock.ToolResult -> storedToText(it.content)
+            is StoredBlock.ImageRef -> "[screenshot]"
+        }
+    }
+
     // --- Context accounting ------------------------------------------------
 
     suspend fun sessionCost(sessionId: Long): Double = usage.sessionCost(sessionId)

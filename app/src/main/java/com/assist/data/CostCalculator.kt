@@ -32,12 +32,23 @@ class CostCalculator(
             ?: pricing[defaultModel]
             ?: DEFAULT_PRICING.getValue("claude-opus-4-8")
 
+    /**
+     * Pricing for [model] at the given generation [speed]. Fast mode (phase-12)
+     * is billed at premium rates (opus-4-8 fast $10/$50; opus-4-7 fast $30/$150);
+     * a model with no fast row falls back to its standard pricing.
+     */
+    fun pricingFor(model: String, speed: String?): ModelPricing =
+        if (speed == SPEED_FAST) FAST_PRICING[model] ?: pricingFor(model) else pricingFor(model)
+
     /** The model's context window in tokens. */
     fun contextWindow(model: String): Int = pricingFor(model).contextWindow
 
-    /** Cost in USD of a single [Usage] row for [model]. */
+    /**
+     * Cost in USD of a single [Usage] row for [model]. Priced by the row's
+     * recorded [Usage.speed] so fast-mode turns bill at the premium multiplier.
+     */
     fun usageCost(model: String, usage: Usage): Double {
-        val p = pricingFor(model)
+        val p = pricingFor(model, usage.speed)
         return (
             usage.inputTokens * p.inputPerMillion +
                 usage.outputTokens * p.outputPerMillion +
@@ -72,6 +83,31 @@ class CostCalculator(
                 cacheWritePerMillion = 1.25,
                 cacheReadPerMillion = 0.1,
                 contextWindow = 200_000,
+            ),
+        )
+
+        /** The recorded `usage.speed` value for a fast-mode turn. */
+        const val SPEED_FAST = "fast"
+
+        /**
+         * Fast-mode price rows keyed by model (phase-12). Premium multiplier:
+         * opus-4-8 fast $10/$50 (2× standard), opus-4-7 fast $30/$150. Cache
+         * write = 1.25× input, cache read = 0.1× input, as elsewhere.
+         */
+        val FAST_PRICING: Map<String, ModelPricing> = mapOf(
+            "claude-opus-4-8" to ModelPricing(
+                inputPerMillion = 10.0,
+                outputPerMillion = 50.0,
+                cacheWritePerMillion = 12.5,
+                cacheReadPerMillion = 1.0,
+                contextWindow = 1_000_000,
+            ),
+            "claude-opus-4-7" to ModelPricing(
+                inputPerMillion = 30.0,
+                outputPerMillion = 150.0,
+                cacheWritePerMillion = 37.5,
+                cacheReadPerMillion = 3.0,
+                contextWindow = 1_000_000,
             ),
         )
     }

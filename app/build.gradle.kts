@@ -65,6 +65,12 @@ android {
     }
 }
 
+// Room exports its schema JSON here (phase-12); the committed schema documents
+// the CREATE statements the numbered migrations must mirror.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

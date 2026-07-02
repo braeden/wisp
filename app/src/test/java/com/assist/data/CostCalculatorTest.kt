@@ -59,4 +59,41 @@ class CostCalculatorTest {
         val opus = calc.usageCost("claude-opus-4-8", Usage(inputTokens = 1000))
         assertEquals(opus, unknown, 1e-12)
     }
+
+    @Test
+    fun `fast-mode opus priced at the premium 10 and 50 per million`() {
+        // 1M in @ $10/1M + 1M out @ $50/1M = 60.0 (2x standard opus).
+        val cost = calc.usageCost(
+            "claude-opus-4-8",
+            Usage(inputTokens = 1_000_000, outputTokens = 1_000_000, speed = "fast"),
+        )
+        assertEquals(60.0, cost, 1e-9)
+    }
+
+    @Test
+    fun `fast-mode opus-4-7 priced at 30 and 150 per million`() {
+        val cost = calc.usageCost(
+            "claude-opus-4-7",
+            Usage(inputTokens = 1_000_000, outputTokens = 1_000_000, speed = "fast"),
+        )
+        assertEquals(180.0, cost, 1e-9)
+    }
+
+    @Test
+    fun `standard speed still uses standard pricing`() {
+        val cost = calc.usageCost(
+            "claude-opus-4-8",
+            Usage(inputTokens = 1_000_000, outputTokens = 1_000_000, speed = "standard"),
+        )
+        assertEquals(30.0, cost, 1e-9)
+    }
+
+    @Test
+    fun `fast speed on a model without a fast row falls back to standard`() {
+        val cost = calc.usageCost(
+            "claude-haiku-4-5",
+            Usage(inputTokens = 1_000_000, outputTokens = 1_000_000, speed = "fast"),
+        )
+        assertEquals(6.0, cost, 1e-9)
+    }
 }
