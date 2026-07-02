@@ -82,10 +82,60 @@ Feasibility confirmed; decisions locked (`.claude/phases/phase-00-decisions.md`)
   29 unit tests green (serializer mapping/caps/recycle, bounds/center, swipe
   geometry, label resolution, rendering).
 
+### Phase 04 — LLM abstraction + Claude client ✅
+- **Seeded seam** (`com.assist.llm`, on `main` before the fan-out so 04/05 shared
+  it): `LlmClient`, `LlmRequest/Response`, `LlmMessage`+`Role`, `ContentBlock`
+  (Text/Image/Thinking/ToolUse/ToolResult), `SystemBlock`, `ToolDef`, `ToolCall`,
+  `LlmStreamEvent`, `Usage`, `Effort`. Model-agnostic; no Anthropic types leak.
+- **Decision: direct REST via OkHttp + kotlinx.serialization** (not the
+  `anthropic-java` SDK) — provable minSdk-30 fit (no desugaring), direct
+  `call.cancel()` for interruptibility, beta features are just headers+JSON.
+  Rationale in `llm/anthropic/README.md`.
+- `AnthropicLlmClient`: SSE streaming w/ cooperative cancel, tool_use/tool_result
+  round-trip, vision (base64), adaptive thinking + `output_config.effort`, prompt
+  caching (`cache_control` on system+tools; cache tokens surfaced in `Usage`),
+  `countTokens`, `dropOldScreenshots`/`compactConversation`
+  (`clear_tool_uses_20250919` / `compact_20260112`), typed retryable errors.
+  `ModelRouter` (SIMPLE→haiku-4-5, STANDARD→sonnet-5, else opus-4-8). Additive
+  seam field `LlmRequest.contextManagement`. New `di/LlmModule.kt`.
+- **Real-model smoke test** in `androidTest` (`AnthropicSmokeTest`), key-gated via
+  `BuildConfig.ANTHROPIC_API_KEY` (from `-PanthropicApiKey` / `ANTHROPIC_API_KEY`
+  env); skips cleanly with no key. **Not yet run live** — needs the user's key.
+- Added deps: `okhttp 4.12.0`, `androidx-test-runner`; `buildConfig=true`.
+
+### Phase 05 — Session DB + context management ✅
+- Room DB (`AssistDatabase`, v1, destructive migration): `Session/Message/
+  ToolCall/Usage/Media/Note` entities + DAOs. Screenshots stored as **files**
+  (`filesDir/screenshots/session_<id>/<uuid>.<ext>`) via `ScreenshotStore`; rows
+  hold paths only (no base64 blobs). `StoredBlock`/`MessageContentCodec` for
+  on-disk content.
+- `SessionRepository`: CRUD + `listSessions(): Flow`, append message/toolcall/
+  usage, notes, `saveScreenshot`, and `buildLlmMessages(id): List<LlmMessage>`
+  (rebuilds against the phase-04 seam; dropped screenshots → placeholder text).
+  `CostCalculator` (opus-4-8 $5/$25, sonnet-5 $3/$15, haiku-4-5 $1/$5; cache
+  1.25×/0.1×), `ContextTracker`→`ContextStatus`. Context-shrink:
+  `markScreenshotsDropped`, `summarizeAndCompact`. New `di/DataModule.kt`.
+- 14 unit tests (in-memory Room + Turbine). Added test dep `turbine`.
+
+### Integration ✅
+- Merged 03/04/05 to `main` (`--no-ff`); only conflicts were the two build files
+  (union-resolved: turbine + test-runner + okhttp all kept). Each phase added its
+  own `di/*Module.kt`; `AppModule` untouched.
+- **Integrated build green**: `:app:assembleDebug`, `:app:testDebugUnitTest`
+  (**43 tests**), `:app:compileDebugAndroidTestKotlin` all pass; app installs +
+  launches on `pixel7pro_api35` with the merged Hilt graph (4 modules), no DI/
+  runtime crash.
+
 ### Next
-- **Fan out: phases 03 / 04 / 05 in parallel** (see `.claude/README.md`). They
-  touch `service/`, `llm/`, `data/` respectively and share only `SecretStore`
-  (04) + locally-defined tool contracts. Good point to reset context and hand off.
+- **Human checkpoint:** run the phase-04 live smoke test with a real
+  `ANTHROPIC_API_KEY` (text + tool-use + vision turns) to confirm the Claude
+  client against the API.
+- **Phase 06 — agent orchestration loop** (integration phase): wire
+  `DeviceController` (03) + `LlmClient`/`ModelRouter` (04) + `SessionRepository`
+  (05) into the tool-router + agent loop. Defines the `AgentTool` catalog and the
+  safety confirmation gates.
+- **Phase 12** (task memory / fast mode / steering) queued as a follow-on
+  extension after 06 (design in `.claude/phases/phase-12-*`).
 
 ## Notes / gotchas
 - Homebrew `openjdk@17` won't bottle on this machine (needs full Xcode); used a
