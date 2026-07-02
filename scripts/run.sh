@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Install and launch the app's main activity.
+# Install + launch the app. Thin wrapper: resolves JDK 17 + SDK, targets a device
+# (via ANDROID_SERIAL if set), then delegates to Gradle's runApp task.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
-serial="$(target_device)"
-bash "$(dirname "${BASH_SOURCE[0]}")/install.sh"
-echo ">> launching $LAUNCHER_ACTIVITY on $serial"
-"$ADB" -s "$serial" shell am start -n "$LAUNCHER_ACTIVITY"
+require_gradle
+export ANDROID_SERIAL="$(target_device)"
+echo ">> runApp (install + launch) on $ANDROID_SERIAL (JAVA_HOME=$JAVA_HOME)"
+"$GRADLEW" -p "$ASSIST_ROOT" runApp "$@"

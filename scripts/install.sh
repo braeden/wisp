@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Build then install the debug APK to the target device.
+# Build + install the debug APK. Thin wrapper: resolves JDK 17 + SDK, targets a
+# device (via ANDROID_SERIAL if set), then delegates to Gradle's installDebug.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 require_gradle
-serial="$(target_device)"
-echo ">> building..."
-"$GRADLEW" -p "$ASSIST_ROOT" "${APP_MODULE}:assembleDebug"
-[[ -f "$DEBUG_APK" ]] || { echo "ERROR: APK not found at $DEBUG_APK" >&2; exit 1; }
-echo ">> installing to $serial"
-"$ADB" -s "$serial" install -r -g "$DEBUG_APK"
+# Pin the target so installDebug picks the right device when several are attached.
+export ANDROID_SERIAL="$(target_device)"
+echo ">> installDebug to $ANDROID_SERIAL (JAVA_HOME=$JAVA_HOME)"
+"$GRADLEW" -p "$ASSIST_ROOT" "${APP_MODULE}:installDebug" "$@"
 echo ">> done"
