@@ -28,7 +28,7 @@ Plan and per-phase specs: [`.claude/`](.claude/README.md).
 ### Phase 00 — Decisions ✅
 Feasibility confirmed; decisions locked (`.claude/phases/phase-00-decisions.md`).
 
-### Phase 01 — Tooling & build/debug self-loop ✅ (in progress → wrapping)
+### Phase 01 — Tooling & build/debug self-loop ✅
 - Installed JDK 17 (Temurin), upgraded adb/platform-tools to 37.0.0, installed
   API-35 platform + build-tools 35 + emulator + Pixel Play system image.
 - Created AVD `pixel7pro_api35`.
@@ -36,14 +36,43 @@ Feasibility confirmed; decisions locked (`.claude/phases/phase-00-decisions.md`)
   `install.sh`, `run.sh`, `logcat.sh`, `emulator.sh`, `enable-service.sh`,
   `devices.sh`.
 - Added `.gitignore`, `local.properties` (gitignored), root `README.md`, this log.
-- Scripts fail gracefully until phase-02 creates the Gradle project.
+
+### Phase 02 — App skeleton ✅
+- **Gradle project** (Kotlin DSL): `settings.gradle.kts`, root + `:app`
+  `build.gradle.kts`, `gradle.properties`, version catalog
+  `gradle/libs.versions.toml` (AGP 8.7.3, Gradle 8.9, Kotlin 2.0.21, Compose BOM
+  2024.10.01, Hilt 2.52, Room 2.6.1, coroutines/serialization/security-crypto).
+  Wrapper committed (`./gradlew`, pinned 8.9).
+- **App** under `com.assist`: `AssistApplication` (`@HiltAndroidApp`),
+  `ui.MainActivity` (Compose) onboarding — live permission status + deep-links
+  (accessibility, overlay, mic, notifications), masked Anthropic-key field, gated
+  "Start session". `data.SecretStore` + `EncryptedSecretStore`
+  (EncryptedSharedPreferences), `di.AppModule`, `ui.Permissions` helper,
+  Material3 theme. Package skeleton stubs for the parallel phases
+  (`service/ llm/ llm/anthropic/ agent/ voice/ overlay/ prompt/`).
+- **Manifest**: permissions + commented placeholder registrations for the
+  phase-03 AccessibilityService and phase-07 overlay FGS.
+- **Verified**: `:app:assembleDebug` + `:app:testDebugUnitTest` green; installed
+  and launched on `pixel7pro_api35` (onboarding screen renders, no crash).
+- **Build automation**: inner loop is now **Gradle tasks** (`gradle/device.gradle.kts`:
+  `runApp`/`launchApp`/`stopApp`/`enableAccessibility`/`listDevices`, plus AGP
+  `installDebug`); `build.sh`/`install.sh`/`run.sh` thinned to wrappers.
+  `emulator.sh`/`logcat.sh`/`enable-service.sh` stay scripts (streaming/branching).
+- **Portability**: no machine-specific bakes committed; `env.sh` is OS-aware
+  (macOS/Linux SDK + JDK discovery) and auto-generates gitignored
+  `local.properties` from the resolved SDK on first build.
 
 ### Next
-- **Phase 02 — App skeleton** (sequential): Gradle project, Compose/Hilt/Room,
-  permission onboarding, `SecretStore`. Then fan out 03/04/05 in parallel.
+- **Fan out: phases 03 / 04 / 05 in parallel** (see `.claude/README.md`). They
+  touch `service/`, `llm/`, `data/` respectively and share only `SecretStore`
+  (04) + locally-defined tool contracts. Good point to reset context and hand off.
 
 ## Notes / gotchas
 - Homebrew `openjdk@17` won't bottle on this machine (needs full Xcode); used a
   prebuilt Temurin tarball into `~/Library/Java/JavaVirtualMachines` instead.
 - The Pixel 7 Pro AVD profile required updating `cmdline-tools;latest` (the
   bundled catalog only went to Pixel 5).
+- `brew install gradle` builds `gettext` from source here (no bottle, same
+  CommandLineTools-only issue as the JDK) — too slow. Bootstrapped the wrapper
+  instead by downloading the Gradle 8.9 dist zip directly and running
+  `gradle wrapper`. The committed wrapper means no system Gradle is needed again.

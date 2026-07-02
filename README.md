@@ -22,27 +22,58 @@ The build scripts resolve `ANDROID_HOME` and a JDK-17 `JAVA_HOME` automatically
 (see `scripts/env.sh`). Override with `ASSIST_JAVA_HOME` / `ANDROID_HOME` /
 `ANDROID_SERIAL` if needed.
 
-> The app project itself (Gradle module `:app`) is created in **phase-02**; until
-> then the build/install/run scripts intentionally error with a helpful message.
+## Portability (works on any machine)
+
+Nothing machine-specific is committed. A fresh clone needs only:
+
+1. **JDK 17** on the machine (Temurin recommended). `scripts/*` auto-discover it
+   via `/usr/libexec/java_home -v 17` (macOS) or `/usr/lib/jvm/*17*` (Linux);
+   override with `ASSIST_JAVA_HOME=/path/to/jdk17`.
+2. **Android SDK** with `platform-android-35` + `build-tools;35.0.0`. Point to it
+   with `ANDROID_HOME` (defaults: `~/Library/Android/sdk` on macOS,
+   `~/Android/Sdk` on Linux).
+
+Everything else is self-contained: the **Gradle wrapper** (`./gradlew`, pinned to
+8.9) is committed, so no system Gradle is required; `local.properties` is
+**gitignored** and auto-generated from the resolved SDK path on first build;
+plugin/library versions are pinned in `gradle/libs.versions.toml`; the debug
+signing key is the per-machine default. Run `scripts/build.sh` (or Android Studio)
+on a clean checkout and it just works.
 
 ## Build / run / debug loop
 
+The **inner loop is Gradle tasks** (single source of truth); shell scripts are
+thin wrappers that resolve the JDK/SDK/device and delegate.
+
 ```bash
 # 1. Start the emulator (or plug in a device with USB debugging)
-scripts/emulator.sh              # add --headless for CI-style boot
-scripts/devices.sh               # list devices; export ANDROID_SERIAL to pick one
+scripts/emulator.sh              # boots AVD pixel7pro_api35; --headless for CI
+./gradlew listDevices            # or scripts/devices.sh — export ANDROID_SERIAL to pick one
 
-# 2. Build + install + launch
-scripts/build.sh                 # ./gradlew :app:assembleDebug
-scripts/install.sh               # build + adb install -r -g
-scripts/run.sh                   # install + launch MainActivity
+# 2. Build + install + launch  (Gradle tasks; scripts wrap these)
+./gradlew :app:assembleDebug     # = scripts/build.sh
+./gradlew :app:installDebug      # = scripts/install.sh
+./gradlew runApp                 # install + launch MainActivity  = scripts/run.sh
+./gradlew stopApp                # force-stop
 
-# 3. Watch logs
+# 3. Watch logs  (streaming — stays a script)
 scripts/logcat.sh                # filtered to the app process
 
 # 4. Accessibility service (needed from phase-03 on)
-scripts/enable-service.sh        # emulator: sets it directly; device: opens Settings
+./gradlew enableAccessibility    # emulator/rooted: sets the secure setting
+scripts/enable-service.sh        # device: opens Settings for a manual toggle
 ```
+
+### Gradle vs. scripts — the split
+
+| Concern | Where | Why |
+|---|---|---|
+| assemble / install / uninstall | Gradle (AGP built-ins) | Native to the build |
+| `runApp` / `launchApp` / `stopApp` / `enableAccessibility` / `listDevices` | Gradle (`gradle/device.gradle.kts`) | One-shot, dependency-aware |
+| Emulator boot + boot-poll | `scripts/emulator.sh` | Backgrounds a process; poor daemon fit |
+| Streaming `logcat -f` | `scripts/logcat.sh` | Long-running tail |
+| Accessibility toggle on locked devices | `scripts/enable-service.sh` | Device-vs-emulator branching |
+| JDK/SDK/device resolution | `scripts/env.sh` | Shared bootstrap for the above |
 
 Target a physical **Pixel 7 Pro** instead of the emulator by enabling USB
 debugging and `export ANDROID_SERIAL=<serial>` (see `scripts/devices.sh`). Full
