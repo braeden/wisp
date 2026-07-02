@@ -52,20 +52,18 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- ===================================================================
-             Placeholder registrations filled in by later phases. Kept here so
-             the manifest merge and package layout are stable across the fan-out.
-
-             phase-07 — overlay foreground service (com.assist.overlay.OverlayService):
-             <service
-                 android:name=".overlay.OverlayService"
-                 android:exported="false"
-                 android:foregroundServiceType="specialUse">
-                 <property
-                     android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                     android:value="on-device AI phone agent overlay" />
-             </service>
-             =================================================================== -->
+        <!-- phase-07 — overlay foreground service. Hosts the Compose overlay in a
+             WindowManager window above the driven app. Ships as its own specialUse
+             FGS for now; intended to unify with .agent.AgentService into one
+             coordinated FGS later. -->
+        <service
+            android:name=".overlay.OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="on-device AI phone agent overlay" />
+        </service>
 
         <!-- phase-06 — agent orchestration foreground service. Hosts AgentLoop so
              tasks survive backgrounding while driving other apps. Shares the FGS

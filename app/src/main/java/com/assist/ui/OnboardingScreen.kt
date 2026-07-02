@@ -40,6 +40,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.assist.R
+import com.assist.overlay.OverlayService
 
 @Composable
 fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
@@ -112,6 +113,8 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
                 hasApiKey = hasApiKey,
                 onSave = viewModel::saveApiKey,
             )
+
+            OverlayCard(overlayOk = overlayOk)
 
             val ready = hasApiKey && accessibilityOk
             Button(
@@ -201,6 +204,55 @@ private fun PermissionRow(
         } else {
             OutlinedButton(onClick = onGrant) {
                 Text(stringResource(R.string.status_missing))
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverlayCard(overlayOk: Boolean) {
+    val context = LocalContext.current
+    var shown by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.overlay_header),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.overlay_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!overlayOk) {
+                Text(
+                    text = stringResource(R.string.overlay_needs_permission),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            Button(
+                onClick = {
+                    if (shown) {
+                        OverlayService.stop(context)
+                        shown = false
+                    } else {
+                        OverlayService.start(context)
+                        shown = true
+                    }
+                },
+                enabled = overlayOk,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    stringResource(
+                        if (shown) R.string.overlay_hide else R.string.overlay_show,
+                    ),
+                )
             }
         }
     }
