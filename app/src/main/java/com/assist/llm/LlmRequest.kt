@@ -13,4 +13,9 @@ data class LlmRequest(
     val maxTokens: Int,
     val effort: Effort? = null,
     val thinkingAdaptive: Boolean = true,
+    /**
+     * Optional in-turn context management (context editing / compaction). Null =
+     * none. Additive; existing call sites are unaffected.
+     */
+    val contextManagement: ContextManagement? = null,
 )
