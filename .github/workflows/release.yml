@@ -82,7 +82,7 @@ jobs:
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wisp-release-apk
           path: ${{ steps.apk.outputs.path }}
