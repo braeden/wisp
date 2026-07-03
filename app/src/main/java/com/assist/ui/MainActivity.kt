@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
@@ -95,6 +97,11 @@ private fun AssistApp() {
             navController = nav,
             startDestination = Tab.Sessions.route,
             modifier = Modifier.padding(inner),
+            // Tab switches should be instant — no cross-fade.
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
         ) {
             composable(Tab.Sessions.route) {
                 SessionsScreen(onOpenSession = { id -> nav.navigate("session/$id") })

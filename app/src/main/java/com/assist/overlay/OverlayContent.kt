@@ -79,6 +79,7 @@ fun OverlayRoot(
     onDrag: (Offset) -> Unit,
     onInterrupt: () -> Unit,
     onRecordNewMessage: () -> Unit,
+    onCancelDictate: () -> Unit,
     onNewSession: () -> Unit,
     onSwitchSession: (Long) -> Unit,
     onSubmitReply: (String) -> Unit,
@@ -94,6 +95,7 @@ fun OverlayRoot(
             onCollapse = onToggleExpanded,
             onDrag = onDrag,
             onInterrupt = onInterrupt,
+            onCancelDictate = onCancelDictate,
             onNewSession = onNewSession,
             onSwitchSession = onSwitchSession,
             onSubmitReply = onSubmitReply,
@@ -108,6 +110,7 @@ fun OverlayRoot(
             onTap = onToggleExpanded,
             onInterrupt = onInterrupt,
             onRecordNewMessage = onRecordNewMessage,
+            onCancelDictate = onCancelDictate,
             onDrag = onDrag,
         )
     }
@@ -122,6 +125,7 @@ private fun Bubble(
     onTap: () -> Unit,
     onInterrupt: () -> Unit,
     onRecordNewMessage: () -> Unit,
+    onCancelDictate: () -> Unit,
     onDrag: (Offset) -> Unit,
 ) {
     val busy = state.phase != AgentPhase.IDLE && state.phase != AgentPhase.LISTENING
@@ -168,26 +172,30 @@ private fun Bubble(
                 )
             }
             // Record a new spoken instruction (runs it as a task). While capturing,
-            // the mic goes hot: red glyph on a white pill so the state is obvious.
+            // the mic goes hot (red glyph on a white pill); tapping again cancels.
             Surface(
                 shape = CircleShape,
                 color = if (dictating) Color.White else Color.Transparent,
                 modifier = Modifier.size(36.dp),
             ) {
                 IconButton(
-                    onClick = { if (!dictating) onRecordNewMessage() },
+                    onClick = { if (dictating) onCancelDictate() else onRecordNewMessage() },
                     modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         MicIcon,
-                        contentDescription = if (dictating) "Recording…" else "Record a message",
+                        contentDescription = if (dictating) "Stop recording" else "Record a message",
                         tint = if (dictating) RecordingRed else Color.White,
                     )
                 }
             }
-            // Stop the current task.
-            IconButton(onClick = onInterrupt, modifier = Modifier.size(36.dp)) {
-                StopGlyph()
+            // Stop the current task; dimmed + inert once the agent is done/idle.
+            IconButton(
+                onClick = onInterrupt,
+                enabled = busy,
+                modifier = Modifier.size(36.dp),
+            ) {
+                StopGlyph(if (busy) Color.White else Color.White.copy(alpha = 0.35f))
             }
         }
     }
@@ -203,6 +211,7 @@ private fun Panel(
     onCollapse: () -> Unit,
     onDrag: (Offset) -> Unit,
     onInterrupt: () -> Unit,
+    onCancelDictate: () -> Unit,
     onNewSession: () -> Unit,
     onSwitchSession: (Long) -> Unit,
     onSubmitReply: (String) -> Unit,
@@ -309,9 +318,11 @@ private fun Panel(
 
             Spacer(Modifier.height(10.dp))
             ReplyBar(
+                busy = state.phase != AgentPhase.IDLE && state.phase != AgentPhase.LISTENING,
                 dictating = dictating,
                 onSubmitReply = onSubmitReply,
                 onDictate = onDictate,
+                onCancelDictate = onCancelDictate,
                 onInterrupt = onInterrupt,
                 onSetFocusable = onSetFocusable,
             )
@@ -440,9 +451,11 @@ private fun ConfirmationRow(prompt: ConfirmationPrompt, onSubmitReply: (String) 
  */
 @Composable
 private fun ReplyBar(
+    busy: Boolean,
     dictating: Boolean,
     onSubmitReply: (String) -> Unit,
     onDictate: suspend () -> String?,
+    onCancelDictate: () -> Unit,
     onInterrupt: () -> Unit,
     onSetFocusable: (Boolean) -> Unit,
 ) {
@@ -476,11 +489,14 @@ private fun ReplyBar(
                 textStyle = MaterialTheme.typography.bodyMedium,
                 trailingIcon = {
                     when {
-                        dictating -> Icon(
-                            MicIcon,
-                            contentDescription = "Recording…",
-                            tint = RecordingRed,
-                        )
+                        // Hot mic: tap again to cancel the capture.
+                        dictating -> IconButton(onClick = onCancelDictate) {
+                            Icon(
+                                MicIcon,
+                                contentDescription = "Stop recording",
+                                tint = RecordingRed,
+                            )
+                        }
                         text.isNotBlank() -> IconButton(onClick = { submit() }) {
                             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                         }
@@ -516,7 +532,16 @@ private fun ReplyBar(
                 )
             }
         }
-        IconButton(onClick = onInterrupt) { StopGlyph(MaterialTheme.colorScheme.error) }
+        // Stop is live only while a task is in flight; dimmed once the agent is done.
+        IconButton(onClick = onInterrupt, enabled = busy) {
+            StopGlyph(
+                if (busy) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                },
+            )
+        }
     }
 }
 

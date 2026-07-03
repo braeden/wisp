@@ -12,6 +12,7 @@ import com.assist.di.AppScope
 import com.assist.voice.AudioSessionArbiter
 import com.assist.voice.MicOwner
 import com.assist.voice.SttEngine
+import com.assist.voice.TtsEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
@@ -59,6 +60,7 @@ class OverlayController @Inject constructor(
     private val repository: SessionRepository,
     private val contextTracker: ContextTracker,
     private val stt: SttEngine,
+    private val tts: TtsEngine,
     private val arbiter: AudioSessionArbiter,
     private val settings: SettingsStore,
     @AppScope private val scope: CoroutineScope,
@@ -135,6 +137,7 @@ class OverlayController @Inject constructor(
                 model = settings.getAgentModel().modelId,
             )
             currentSessionId = session.id
+            hud.tryEmit(OverlayInput.SessionChanged(session.id))
             refreshHud()
             Log.i(TAG, "overlay new session=${session.id}")
         }
@@ -145,6 +148,7 @@ class OverlayController @Inject constructor(
         scope.launch {
             repository.resumeSession(sessionId)
             currentSessionId = sessionId
+            hud.tryEmit(OverlayInput.SessionChanged(sessionId))
             refreshHud()
             Log.i(TAG, "overlay switch session=$sessionId")
         }
@@ -205,6 +209,9 @@ class OverlayController @Inject constructor(
     suspend fun dictate(): String? {
         if (!_dictating.compareAndSet(expect = false, update = true)) return null
         return try {
+            // Barge-in: silence any in-flight TTS immediately so the user isn't
+            // talking over the agent (its say() just completes early).
+            runCatching { tts.stop() }
             runCatching {
                 arbiter.withMic(MicOwner.LISTEN_ONCE) { stt.transcribeOnce().text }
             }.onFailure { Log.w(TAG, "dictation failed: ${it.message}") }
@@ -212,6 +219,17 @@ class OverlayController @Inject constructor(
                 ?.takeIf { it.isNotBlank() }
         } finally {
             _dictating.value = false
+        }
+    }
+
+    /**
+     * Toggle-off for the mic: abort an in-flight dictation capture. The aborted
+     * [SttEngine.transcribeOnce] throws inside [dictate], which returns null.
+     */
+    fun cancelDictation() {
+        if (_dictating.value) {
+            Log.i(TAG, "dictation cancelled by user")
+            runCatching { stt.cancel() }
         }
     }
 

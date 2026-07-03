@@ -15,7 +15,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -66,16 +65,10 @@ fun SessionsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("Sessions", style = MaterialTheme.typography.headlineMedium)
-                    OutlinedButton(onClick = { viewModel.newSession(onOpenSession) }) { Text("New") }
-                }
+                Text("Sessions", style = MaterialTheme.typography.headlineMedium)
             }
             item {
+                // The single entry point: every session is born from a task run.
                 Button(
                     onClick = { showStartDialog = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -159,7 +152,9 @@ private fun SessionCard(
     onDelete: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        // Bottom padding is small on purpose: the TextButton row below already
+        // carries ~12dp of internal touch-target padding.
+        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 2.dp)) {
             Text(
                 text = row.title,
                 style = MaterialTheme.typography.titleMedium,
@@ -167,14 +162,17 @@ private fun SessionCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.padding(2.dp))
+            // status is omitted while it's the default "active" — today nothing ends
+            // a session, so the prefix carried no information.
+            val statusPrefix = row.status.takeIf { it != "active" }?.let { "$it · " } ?: ""
             Text(
-                text = "${row.status} · ${modelLabel(row.model)} · ${row.messageCount} msgs · " +
+                text = statusPrefix + "${modelLabel(row.model)} · ${row.messageCount} msgs · " +
                     "${formatUsd(row.costUsd)} · ${formatRelativeTime(row.updatedAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 TextButton(onClick = onOpen) { Text("Open") }

@@ -122,8 +122,10 @@ class OverlayService : Service() {
                         onDrag = ::moveBy,
                         onInterrupt = controller::interrupt,
                         onRecordNewMessage = {
-                            // Collapsed "record": dictate a fresh instruction and
-                            // run it as a new task (supersedes any in-flight run).
+                            // "Record": pre-empt whatever the agent is doing —
+                            // interrupt the run (stops gestures/LLM/speech within
+                            // ~1s) — then capture the new instruction and run it.
+                            controller.interrupt()
                             uiScope.launch {
                                 val text = controller.dictate()
                                 if (!text.isNullOrBlank()) {
@@ -134,6 +136,7 @@ class OverlayService : Service() {
                                 }
                             }
                         },
+                        onCancelDictate = controller::cancelDictation,
                         onNewSession = controller::newSession,
                         onSwitchSession = controller::switchSession,
                         onSubmitReply = { text ->

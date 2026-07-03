@@ -12,6 +12,9 @@ sealed interface OverlayInput {
     @JvmInline value class Event(val event: AgentEvent) : OverlayInput
     @JvmInline value class Hud(val status: ContextStatus) : OverlayInput
     @JvmInline value class Expand(val expanded: Boolean) : OverlayInput
+
+    /** New/switched session: clear the previous run's transcript view. */
+    @JvmInline value class SessionChanged(val sessionId: Long) : OverlayInput
 }
 
 /**
@@ -26,6 +29,14 @@ class OverlayReducer {
         is OverlayInput.Event -> reduceEvent(state, input.event)
         is OverlayInput.Hud -> state.copy(hud = HudState.from(input.status))
         is OverlayInput.Expand -> state.copy(expanded = input.expanded)
+        // Same clearing as a fresh run: the old run's text/chips belong to the
+        // previous session and would otherwise linger next to a reset HUD.
+        is OverlayInput.SessionChanged -> OverlayUiState(
+            phase = AgentPhase.IDLE,
+            expanded = state.expanded,
+            sessionId = input.sessionId,
+            hud = state.hud,
+        )
     }
 
     private fun reduceEvent(state: OverlayUiState, event: AgentEvent): OverlayUiState = when (event) {

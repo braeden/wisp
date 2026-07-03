@@ -12,6 +12,7 @@ import com.assist.data.SettingsStore
 import com.assist.llm.Usage
 import com.assist.voice.AudioSessionArbiter
 import com.assist.voice.SttEngine
+import com.assist.voice.TtsEngine
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -44,6 +45,7 @@ class OverlayControllerTest {
     private val tracker = mockk<ContextTracker>()
     private val stt = mockk<SttEngine>(relaxed = true)
     private val arbiter = mockk<AudioSessionArbiter>(relaxed = true)
+    private val tts = mockk<TtsEngine>(relaxed = true)
     private val settings = mockk<SettingsStore>(relaxed = true) {
         every { getAgentModel() } returns AgentModel.DEFAULT
     }
@@ -55,7 +57,7 @@ class OverlayControllerTest {
         coEvery { tracker.contextStatus(5L) } returns
             ContextStatus(usedTokens = 1_000, windowTokens = 200_000, costUsd = 0.02, screenshotCount = 1)
 
-        val controller = OverlayController(bus, loop, repo, tracker, stt, arbiter, settings, scope)
+        val controller = OverlayController(bus, loop, repo, tracker, stt, tts, arbiter, settings, scope)
         // Keep the WhileSubscribed StateFlow hot for the duration of the test.
         val subscription = scope.launch { controller.uiState.collect {} }
 
@@ -92,7 +94,7 @@ class OverlayControllerTest {
                 systemPromptVersion = 1,
             )
 
-        val controller = OverlayController(bus, loop, repo, tracker, stt, arbiter, settings, scope)
+        val controller = OverlayController(bus, loop, repo, tracker, stt, tts, arbiter, settings, scope)
 
         controller.interrupt()
         verify { loop.interrupt() }
@@ -112,7 +114,7 @@ class OverlayControllerTest {
     fun `submitReply is delivered to awaitTypedReply`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
         every { repo.listSessions() } returns flowOf(emptyList())
-        val controller = OverlayController(bus, loop, repo, tracker, stt, arbiter, settings, scope)
+        val controller = OverlayController(bus, loop, repo, tracker, stt, tts, arbiter, settings, scope)
 
         var received: String? = null
         val waiter = scope.launch { received = controller.awaitTypedReply() }
@@ -128,7 +130,7 @@ class OverlayControllerTest {
     fun `blank replies are ignored`() = runTest {
         val scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
         every { repo.listSessions() } returns flowOf(emptyList())
-        val controller = OverlayController(bus, loop, repo, tracker, stt, arbiter, settings, scope)
+        val controller = OverlayController(bus, loop, repo, tracker, stt, tts, arbiter, settings, scope)
 
         val results = mutableListOf<String>()
         val job = scope.launch { controller.typedReplies.collect { results += it } }
