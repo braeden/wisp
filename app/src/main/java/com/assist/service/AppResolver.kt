@@ -15,12 +15,21 @@ data class InstalledApp(
  * > label contains > package contains. Ties break on shortest label (most specific).
  */
 class AppResolver {
-    fun resolve(query: String, apps: List<InstalledApp>): String? {
+    fun resolve(
+        query: String,
+        apps: List<InstalledApp>,
+    ): String? {
         val q = query.trim()
         if (q.isEmpty() || apps.isEmpty()) return null
         val ql = q.lowercase()
 
-        apps.firstOrNull { it.packageName.equals(q, ignoreCase = true) }?.let { return it.packageName }
+        apps
+            .firstOrNull {
+                it.packageName.equals(
+                    q,
+                    ignoreCase = true,
+                )
+            }?.let { return it.packageName }
 
         val exactLabel = apps.filter { it.label.equals(q, ignoreCase = true) }
         if (exactLabel.isNotEmpty()) return exactLabel.minBy { it.label.length }.packageName

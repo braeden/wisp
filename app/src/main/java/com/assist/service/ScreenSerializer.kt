@@ -22,20 +22,25 @@ class ScreenSerializer(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     fun serialize(root: NodeView?): ScreenFrame {
-        if (root == null) return ScreenFrame(ScreenState.EMPTY.copy(timestampMs = clock()), emptyMap())
+        if (root ==
+            null
+        ) {
+            return ScreenFrame(ScreenState.EMPTY.copy(timestampMs = clock()), emptyMap())
+        }
 
         val elements = ArrayList<UiElement>()
         val nodes = HashMap<Int, NodeView>()
         val ctx = Walk(elements, nodes)
         walk(root, 0, ctx)
 
-        val state = ScreenState(
-            appPackage = root.packageName?.toString().orEmpty(),
-            elements = elements,
-            window = simpleName(root.className),
-            truncated = ctx.truncated,
-            timestampMs = clock(),
-        )
+        val state =
+            ScreenState(
+                appPackage = root.packageName?.toString().orEmpty(),
+                elements = elements,
+                window = simpleName(root.className),
+                truncated = ctx.truncated,
+                timestampMs = clock(),
+            )
         return ScreenFrame(state, nodes)
     }
 
@@ -47,7 +52,11 @@ class ScreenSerializer(
         var truncated = false
     }
 
-    private fun walk(node: NodeView, depth: Int, ctx: Walk) {
+    private fun walk(
+        node: NodeView,
+        depth: Int,
+        ctx: Walk,
+    ) {
         var retained = false
         if (ctx.elements.size < maxElements) {
             if (isMeaningful(node)) {
@@ -75,28 +84,36 @@ class ScreenSerializer(
     private fun isMeaningful(node: NodeView): Boolean {
         if (!node.isVisibleToUser) return false
         val hasText = !node.text.isNullOrBlank() || !node.contentDescription.isNullOrBlank()
-        val actionable = node.isClickable || node.isLongClickable || node.isEditable ||
-            node.isScrollable || node.isCheckable
+        val actionable =
+            node.isClickable ||
+                node.isLongClickable ||
+                node.isEditable ||
+                node.isScrollable ||
+                node.isCheckable
         return hasText || actionable
     }
 
-    private fun toElement(id: Int, node: NodeView): UiElement = UiElement(
-        id = id,
-        role = simpleName(node.className) ?: "View",
-        text = clip(node.text),
-        contentDesc = clip(node.contentDescription),
-        resourceId = node.resourceId?.substringAfterLast('/')?.takeIf { it.isNotBlank() },
-        bounds = node.bounds,
-        clickable = node.isClickable,
-        longClickable = node.isLongClickable,
-        editable = node.isEditable,
-        scrollable = node.isScrollable,
-        checkable = node.isCheckable,
-        checked = node.isChecked,
-        focused = node.isFocused,
-        password = node.isPassword,
-        enabled = node.isEnabled,
-    )
+    private fun toElement(
+        id: Int,
+        node: NodeView,
+    ): UiElement =
+        UiElement(
+            id = id,
+            role = simpleName(node.className) ?: "View",
+            text = clip(node.text),
+            contentDesc = clip(node.contentDescription),
+            resourceId = node.resourceId?.substringAfterLast('/')?.takeIf { it.isNotBlank() },
+            bounds = node.bounds,
+            clickable = node.isClickable,
+            longClickable = node.isLongClickable,
+            editable = node.isEditable,
+            scrollable = node.isScrollable,
+            checkable = node.isCheckable,
+            checked = node.isChecked,
+            focused = node.isFocused,
+            password = node.isPassword,
+            enabled = node.isEnabled,
+        )
 
     private fun clip(raw: String?): String? {
         val s = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null

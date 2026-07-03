@@ -8,7 +8,6 @@ package com.assist.agent
  * Contract consumed by 07/08.
  */
 interface UserIo {
-
     /** Speak/display [text] to the user. One-way. */
     suspend fun say(text: String)
 

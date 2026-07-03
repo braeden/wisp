@@ -15,10 +15,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class PromptModule {
-
     @Binds
     @Singleton
-    abstract fun bindSystemPromptProvider(
-        impl: DefaultSystemPromptProvider,
-    ): SystemPromptProvider
+    abstract fun bindSystemPromptProvider(impl: DefaultSystemPromptProvider): SystemPromptProvider
 }

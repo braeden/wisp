@@ -22,15 +22,16 @@ object RecipesReducer {
     fun reduce(recipes: List<TaskRecipe>): RecipesUiState =
         RecipesUiState(
             loading = false,
-            rows = recipes.map {
-                RecipeRowUi(
-                    id = it.id,
-                    title = it.title.ifBlank { "Untitled recipe" },
-                    appPackage = it.appPackage,
-                    useCount = it.useCount,
-                    lastUsedAt = it.lastUsedAt,
-                    memoryPath = it.memoryPath,
-                )
-            },
+            rows =
+                recipes.map {
+                    RecipeRowUi(
+                        id = it.id,
+                        title = it.title.ifBlank { "Untitled recipe" },
+                        appPackage = it.appPackage,
+                        useCount = it.useCount,
+                        lastUsedAt = it.lastUsedAt,
+                        memoryPath = it.memoryPath,
+                    )
+                },
         )
 }

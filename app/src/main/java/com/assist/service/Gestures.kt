@@ -6,16 +6,25 @@ package com.assist.service
  * consumes these to build `GestureDescription`s.
  */
 object Gestures {
+    data class Point(
+        val x: Int,
+        val y: Int,
+    )
 
-    data class Point(val x: Int, val y: Int)
-
-    data class Segment(val start: Point, val end: Point)
+    data class Segment(
+        val start: Point,
+        val end: Point,
+    )
 
     /**
      * A swipe within [area], covering [fraction] of the relevant dimension, centred
      * on the area. [direction] is the finger's travel direction.
      */
-    fun swipe(direction: SwipeDirection, area: Bounds, fraction: Double = 0.6): Segment {
+    fun swipe(
+        direction: SwipeDirection,
+        area: Bounds,
+        fraction: Double = 0.6,
+    ): Segment {
         val f = fraction.coerceIn(0.1, 0.95)
         val cx = area.centerX
         val cy = area.centerY

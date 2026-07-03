@@ -29,7 +29,6 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class AgentService : Service() {
-
     @Inject lateinit var agentLoop: AgentLoop
 
     @Inject lateinit var repository: SessionRepository
@@ -38,7 +37,8 @@ class AgentService : Service() {
 
     @Inject lateinit var settings: SettingsStore
 
-    @Inject @AppScope lateinit var scope: CoroutineScope
+    @Inject @AppScope
+    lateinit var scope: CoroutineScope
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -48,7 +48,11 @@ class AgentService : Service() {
         startForegroundInternal("Assist agent ready")
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         when (intent?.action) {
             ACTION_INTERRUPT -> {
                 agentLoop.interrupt()
@@ -60,9 +64,10 @@ class AgentService : Service() {
                     Log.w(TAG, "no '$EXTRA_INTENT' extra; ignoring start")
                     stopSelfSoon()
                 } else {
-                    val sessionId = intent
-                        ?.getLongExtra(EXTRA_SESSION_ID, NO_SESSION)
-                        ?.takeIf { it > 0 }
+                    val sessionId =
+                        intent
+                            ?.getLongExtra(EXTRA_SESSION_ID, NO_SESSION)
+                            ?.takeIf { it > 0 }
                     runIntent(userIntent, sessionId)
                 }
             }
@@ -85,7 +90,10 @@ class AgentService : Service() {
                         title = userIntent.take(80),
                         model = settings.getAgentModel().modelId,
                     )
-            Log.i(TAG, "run session=${session.id} resumed=${resumeSessionId != null} intent=\"$userIntent\"")
+            Log.i(
+                TAG,
+                "run session=${session.id} resumed=${resumeSessionId != null} intent=\"$userIntent\"",
+            )
             runCatching { agentLoop.start(session.id, userIntent).join() }
                 .onFailure { Log.e(TAG, "run failed", it) }
             Log.i(TAG, "run complete for session=${session.id}")
@@ -110,14 +118,20 @@ class AgentService : Service() {
     }
 
     private fun startForegroundInternal(text: String) {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
-            .setOngoing(true)
-            .build()
+        val notification =
+            NotificationCompat
+                .Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(text)
+                .setSmallIcon(android.R.drawable.ic_menu_compass)
+                .setOngoing(true)
+                .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
@@ -147,7 +161,11 @@ class AgentService : Service() {
          * Build a start intent carrying [userIntent]. Pass [sessionId] to continue
          * an existing session instead of creating a new one.
          */
-        fun runIntent(context: Context, userIntent: String, sessionId: Long? = null): Intent =
+        fun runIntent(
+            context: Context,
+            userIntent: String,
+            sessionId: Long? = null,
+        ): Intent =
             Intent(context, AgentService::class.java)
                 .setAction(ACTION_RUN)
                 .putExtra(EXTRA_INTENT, userIntent)

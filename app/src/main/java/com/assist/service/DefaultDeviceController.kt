@@ -25,7 +25,6 @@ class DefaultDeviceController(
     private val gestureFactory: GestureFactory,
     private val appResolver: AppResolver,
 ) : DeviceController {
-
     private val frameLock = Mutex()
     private var currentFrame: ScreenFrame = ScreenFrame.EMPTY
 
@@ -52,15 +51,17 @@ class DefaultDeviceController(
                     object : AccessibilityService.TakeScreenshotCallback {
                         override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
                             val buffer = result.hardwareBuffer
-                            val bmp = try {
-                                Bitmap.wrapHardwareBuffer(buffer, result.colorSpace)
-                                    ?.copy(Bitmap.Config.ARGB_8888, false)
-                            } catch (t: Throwable) {
-                                Log.w(TAG, "screenshot decode failed", t)
-                                null
-                            } finally {
-                                buffer.close()
-                            }
+                            val bmp =
+                                try {
+                                    Bitmap
+                                        .wrapHardwareBuffer(buffer, result.colorSpace)
+                                        ?.copy(Bitmap.Config.ARGB_8888, false)
+                                } catch (t: Throwable) {
+                                    Log.w(TAG, "screenshot decode failed", t)
+                                    null
+                                } finally {
+                                    buffer.close()
+                                }
                             if (cont.isActive) cont.resume(bmp)
                         }
 
@@ -77,8 +78,9 @@ class DefaultDeviceController(
     // --- Taps ---------------------------------------------------------------
 
     override suspend fun tap(elementId: Int): ToolOutcome {
-        val node = frameLock.withLock { currentFrame.node(elementId) }
-            ?: return ToolOutcome.fail("No element #$elementId in the current screen")
+        val node =
+            frameLock.withLock { currentFrame.node(elementId) }
+                ?: return ToolOutcome.fail("No element #$elementId in the current screen")
         if (node.isClickable && node.performClick()) {
             return ToolOutcome.ok("Tapped #$elementId (${node.className.orRole()})")
         }
@@ -91,13 +93,20 @@ class DefaultDeviceController(
         }
     }
 
-    override suspend fun tapXy(x: Int, y: Int): ToolOutcome =
-        if (dispatch(gestureFactory.tap(x, y))) ToolOutcome.ok("Tapped ($x,$y)")
-        else ToolOutcome.fail("Tap gesture at ($x,$y) failed")
+    override suspend fun tapXy(
+        x: Int,
+        y: Int,
+    ): ToolOutcome =
+        if (dispatch(gestureFactory.tap(x, y))) {
+            ToolOutcome.ok("Tapped ($x,$y)")
+        } else {
+            ToolOutcome.fail("Tap gesture at ($x,$y) failed")
+        }
 
     override suspend fun longPress(elementId: Int): ToolOutcome {
-        val node = frameLock.withLock { currentFrame.node(elementId) }
-            ?: return ToolOutcome.fail("No element #$elementId in the current screen")
+        val node =
+            frameLock.withLock { currentFrame.node(elementId) }
+                ?: return ToolOutcome.fail("No element #$elementId in the current screen")
         if (node.isLongClickable && node.performLongClick()) {
             return ToolOutcome.ok("Long-pressed #$elementId")
         }
@@ -110,13 +119,22 @@ class DefaultDeviceController(
         }
     }
 
-    override suspend fun longPressXy(x: Int, y: Int): ToolOutcome =
-        if (dispatch(gestureFactory.longPress(x, y))) ToolOutcome.ok("Long-pressed ($x,$y)")
-        else ToolOutcome.fail("Long-press gesture at ($x,$y) failed")
+    override suspend fun longPressXy(
+        x: Int,
+        y: Int,
+    ): ToolOutcome =
+        if (dispatch(gestureFactory.longPress(x, y))) {
+            ToolOutcome.ok("Long-pressed ($x,$y)")
+        } else {
+            ToolOutcome.fail("Long-press gesture at ($x,$y) failed")
+        }
 
     // --- Swipe / scroll -----------------------------------------------------
 
-    override suspend fun swipe(direction: SwipeDirection, fraction: Double): ToolOutcome {
+    override suspend fun swipe(
+        direction: SwipeDirection,
+        fraction: Double,
+    ): ToolOutcome {
         val segment = Gestures.swipe(direction, screenBounds(), fraction)
         return if (dispatch(gestureFactory.swipe(segment))) {
             ToolOutcome.ok("Swiped $direction")
@@ -125,7 +143,13 @@ class DefaultDeviceController(
         }
     }
 
-    override suspend fun swipeXy(x1: Int, y1: Int, x2: Int, y2: Int, durationMs: Long): ToolOutcome {
+    override suspend fun swipeXy(
+        x1: Int,
+        y1: Int,
+        x2: Int,
+        y2: Int,
+        durationMs: Long,
+    ): ToolOutcome {
         val segment = Gestures.Segment(Gestures.Point(x1, y1), Gestures.Point(x2, y2))
         return if (dispatch(gestureFactory.swipe(segment, durationMs))) {
             ToolOutcome.ok("Swiped ($x1,$y1)->($x2,$y2)")
@@ -134,86 +158,127 @@ class DefaultDeviceController(
         }
     }
 
-    override suspend fun scroll(elementId: Int, forward: Boolean): ToolOutcome {
-        val node = frameLock.withLock { currentFrame.node(elementId) }
-            ?: return ToolOutcome.fail("No element #$elementId in the current screen")
+    override suspend fun scroll(
+        elementId: Int,
+        forward: Boolean,
+    ): ToolOutcome {
+        val node =
+            frameLock.withLock { currentFrame.node(elementId) }
+                ?: return ToolOutcome.fail("No element #$elementId in the current screen")
         val ok = if (forward) node.performScrollForward() else node.performScrollBackward()
-        return if (ok) ToolOutcome.ok("Scrolled #$elementId ${if (forward) "forward" else "back"}")
-        else ToolOutcome.fail("Element #$elementId did not scroll (${if (forward) "forward" else "back"})")
+        return if (ok) {
+            ToolOutcome.ok("Scrolled #$elementId ${if (forward) "forward" else "back"}")
+        } else {
+            ToolOutcome.fail(
+                "Element #$elementId did not scroll (${if (forward) "forward" else "back"})",
+            )
+        }
     }
 
     override suspend fun scroll(direction: SwipeDirection): ToolOutcome {
         // Content scrolls opposite to the finger: to scroll content down, swipe up.
-        val fingerDir = when (direction) {
-            SwipeDirection.DOWN -> SwipeDirection.UP
-            SwipeDirection.UP -> SwipeDirection.DOWN
-            SwipeDirection.LEFT -> SwipeDirection.RIGHT
-            SwipeDirection.RIGHT -> SwipeDirection.LEFT
-        }
+        val fingerDir =
+            when (direction) {
+                SwipeDirection.DOWN -> SwipeDirection.UP
+                SwipeDirection.UP -> SwipeDirection.DOWN
+                SwipeDirection.LEFT -> SwipeDirection.RIGHT
+                SwipeDirection.RIGHT -> SwipeDirection.LEFT
+            }
         val segment = Gestures.swipe(fingerDir, screenBounds(), fraction = 0.6)
-        return if (dispatch(gestureFactory.swipe(segment))) ToolOutcome.ok("Scrolled $direction")
-        else ToolOutcome.fail("Scroll $direction failed")
+        return if (dispatch(gestureFactory.swipe(segment))) {
+            ToolOutcome.ok("Scrolled $direction")
+        } else {
+            ToolOutcome.fail("Scroll $direction failed")
+        }
     }
 
     // --- Text / keys --------------------------------------------------------
 
-    override suspend fun setText(elementId: Int, text: String): ToolOutcome {
-        val node = frameLock.withLock { currentFrame.node(elementId) }
-            ?: return ToolOutcome.fail("No element #$elementId in the current screen")
-        if (!node.isEditable) return ToolOutcome.fail("Element #$elementId is not an editable field")
+    override suspend fun setText(
+        elementId: Int,
+        text: String,
+    ): ToolOutcome {
+        val node =
+            frameLock.withLock { currentFrame.node(elementId) }
+                ?: return ToolOutcome.fail("No element #$elementId in the current screen")
+        if (!node.isEditable) {
+            return ToolOutcome.fail(
+                "Element #$elementId is not an editable field",
+            )
+        }
         val ok = node.performSetText(text)
         val passwordNote = if (node.isPassword) " (password field — gate before use)" else ""
-        return if (ok) ToolOutcome.ok("Set text on #$elementId$passwordNote")
-        else ToolOutcome.fail("Failed to set text on #$elementId")
+        return if (ok) {
+            ToolOutcome.ok("Set text on #$elementId$passwordNote")
+        } else {
+            ToolOutcome.fail("Failed to set text on #$elementId")
+        }
     }
 
     override suspend fun pressKey(key: DeviceKey): ToolOutcome {
         if (key == DeviceKey.ENTER) {
-            val node = frameLock.withLock {
-                val focusedId = currentFrame.state.elements
-                    .firstOrNull { it.focused && it.editable }?.id
-                focusedId?.let { currentFrame.node(it) }
+            val node =
+                frameLock.withLock {
+                    val focusedId =
+                        currentFrame.state.elements
+                            .firstOrNull { it.focused && it.editable }
+                            ?.id
+                    focusedId?.let { currentFrame.node(it) }
+                }
+            return if (node != null && node.performImeEnter()) {
+                ToolOutcome.ok("Pressed ENTER")
+            } else {
+                ToolOutcome.fail("No focused editable field to send ENTER to")
             }
-            return if (node != null && node.performImeEnter()) ToolOutcome.ok("Pressed ENTER")
-            else ToolOutcome.fail("No focused editable field to send ENTER to")
         }
         val svc = service() ?: return ToolOutcome.fail("Accessibility service not connected")
-        val action = when (key) {
-            DeviceKey.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
-            DeviceKey.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
-            DeviceKey.RECENTS -> AccessibilityService.GLOBAL_ACTION_RECENTS
-            DeviceKey.NOTIFICATIONS -> AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
-            DeviceKey.QUICK_SETTINGS -> AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
-            DeviceKey.ENTER -> return ToolOutcome.fail("unreachable")
+        val action =
+            when (key) {
+                DeviceKey.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
+                DeviceKey.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
+                DeviceKey.RECENTS -> AccessibilityService.GLOBAL_ACTION_RECENTS
+                DeviceKey.NOTIFICATIONS -> AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+                DeviceKey.QUICK_SETTINGS -> AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
+                DeviceKey.ENTER -> return ToolOutcome.fail("unreachable")
+            }
+        return if (svc.performGlobalAction(action)) {
+            ToolOutcome.ok("Pressed $key")
+        } else {
+            ToolOutcome.fail("Global action $key failed")
         }
-        return if (svc.performGlobalAction(action)) ToolOutcome.ok("Pressed $key")
-        else ToolOutcome.fail("Global action $key failed")
     }
 
     // --- App launch ---------------------------------------------------------
 
-    override suspend fun openApp(packageOrLabel: String): ToolOutcome = withContext(Dispatchers.IO) {
-        val pm = appContext.packageManager
-        val query = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        @Suppress("DEPRECATION")
-        val apps = pm.queryIntentActivities(query, 0).map {
-            InstalledApp(
-                packageName = it.activityInfo.packageName,
-                label = it.loadLabel(pm).toString(),
-            )
-        }.distinctBy { it.packageName }
-        val pkg = appResolver.resolve(packageOrLabel, apps)
-            ?: return@withContext ToolOutcome.fail("No app matched \"$packageOrLabel\"")
-        val launch = pm.getLaunchIntentForPackage(pkg)
-            ?: return@withContext ToolOutcome.fail("No launch intent for $pkg")
-        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return@withContext try {
-            appContext.startActivity(launch)
-            ToolOutcome.ok("Opened $pkg")
-        } catch (t: Throwable) {
-            ToolOutcome.fail("Failed to launch $pkg: ${t.message}")
+    override suspend fun openApp(packageOrLabel: String): ToolOutcome =
+        withContext(Dispatchers.IO) {
+            val pm = appContext.packageManager
+            val query = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+
+            @Suppress("DEPRECATION")
+            val apps =
+                pm
+                    .queryIntentActivities(query, 0)
+                    .map {
+                        InstalledApp(
+                            packageName = it.activityInfo.packageName,
+                            label = it.loadLabel(pm).toString(),
+                        )
+                    }.distinctBy { it.packageName }
+            val pkg =
+                appResolver.resolve(packageOrLabel, apps)
+                    ?: return@withContext ToolOutcome.fail("No app matched \"$packageOrLabel\"")
+            val launch =
+                pm.getLaunchIntentForPackage(pkg)
+                    ?: return@withContext ToolOutcome.fail("No launch intent for $pkg")
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            return@withContext try {
+                appContext.startActivity(launch)
+                ToolOutcome.ok("Opened $pkg")
+            } catch (t: Throwable) {
+                ToolOutcome.fail("Failed to launch $pkg: ${t.message}")
+            }
         }
-    }
 
     override suspend fun wait(ms: Long): ToolOutcome {
         val clamped = ms.coerceIn(0, MAX_WAIT_MS)
@@ -223,19 +288,29 @@ class DefaultDeviceController(
 
     // --- Internals ----------------------------------------------------------
 
-    private suspend fun dispatch(gesture: android.accessibilityservice.GestureDescription): Boolean {
+    private suspend fun dispatch(
+        gesture: android.accessibilityservice.GestureDescription,
+    ): Boolean {
         val svc = service() ?: return false
         return suspendCancellableCoroutine { cont ->
-            val callback = object : AccessibilityService.GestureResultCallback() {
-                override fun onCompleted(g: android.accessibilityservice.GestureDescription?) {
-                    if (cont.isActive) cont.resume(true)
-                }
+            val callback =
+                object : AccessibilityService.GestureResultCallback() {
+                    override fun onCompleted(g: android.accessibilityservice.GestureDescription?) {
+                        if (cont.isActive) cont.resume(true)
+                    }
 
-                override fun onCancelled(g: android.accessibilityservice.GestureDescription?) {
-                    if (cont.isActive) cont.resume(false)
+                    override fun onCancelled(g: android.accessibilityservice.GestureDescription?) {
+                        if (cont.isActive) cont.resume(false)
+                    }
                 }
-            }
-            val dispatched = runCatching { svc.dispatchGesture(gesture, callback, null) }.getOrDefault(false)
+            val dispatched =
+                runCatching {
+                    svc.dispatchGesture(
+                        gesture,
+                        callback,
+                        null,
+                    )
+                }.getOrDefault(false)
             if (!dispatched && cont.isActive) cont.resume(false)
         }
     }

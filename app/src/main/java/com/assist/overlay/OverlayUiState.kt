@@ -18,7 +18,10 @@ data class ToolChip(
 )
 
 /** A gated action awaiting an explicit yes/no (feeds back into `ActionGate`). */
-data class ConfirmationPrompt(val question: String, val category: String)
+data class ConfirmationPrompt(
+    val question: String,
+    val category: String,
+)
 
 /**
  * Context-economy HUD, projected from [ContextStatus]. [contextFraction] is the
@@ -31,15 +34,23 @@ data class HudState(
     val screenshotCount: Int,
 ) {
     val contextFraction: Float
-        get() = if (windowTokens <= 0) 0f else (usedTokens.toFloat() / windowTokens).coerceIn(0f, 1f)
+        get() =
+            if (windowTokens <=
+                0
+            ) {
+                0f
+            } else {
+                (usedTokens.toFloat() / windowTokens).coerceIn(0f, 1f)
+            }
 
     companion object {
-        fun from(status: ContextStatus): HudState = HudState(
-            usedTokens = status.usedTokens,
-            windowTokens = status.windowTokens,
-            costUsd = status.costUsd,
-            screenshotCount = status.screenshotCount,
-        )
+        fun from(status: ContextStatus): HudState =
+            HudState(
+                usedTokens = status.usedTokens,
+                windowTokens = status.windowTokens,
+                costUsd = status.costUsd,
+                screenshotCount = status.screenshotCount,
+            )
     }
 }
 

@@ -20,26 +20,29 @@ import androidx.compose.ui.unit.dp
 import com.assist.data.AgentModel
 
 /** USD formatting shared across the session screens. */
-fun formatUsd(value: Double): String = when {
-    value <= 0.0 -> "$0.00"
-    value < 0.01 -> "$" + "%.4f".format(value)
-    else -> "$" + "%.2f".format(value)
-}
+fun formatUsd(value: Double): String =
+    when {
+        value <= 0.0 -> "$0.00"
+        value < 0.01 -> "$" + "%.4f".format(value)
+        else -> "$" + "%.2f".format(value)
+    }
 
 /** Human-readable relative timestamp ("5 min ago"). */
 fun formatRelativeTime(millis: Long): String =
-    DateUtils.getRelativeTimeSpanString(
-        millis,
-        System.currentTimeMillis(),
-        DateUtils.MINUTE_IN_MILLIS,
-    ).toString()
+    DateUtils
+        .getRelativeTimeSpanString(
+            millis,
+            System.currentTimeMillis(),
+            DateUtils.MINUTE_IN_MILLIS,
+        ).toString()
 
 /** Compact token count ("12.3K / 1.0M"). */
-fun formatTokens(count: Int): String = when {
-    count < 1_000 -> count.toString()
-    count < 1_000_000 -> "%.1fK".format(count / 1_000.0)
-    else -> "%.1fM".format(count / 1_000_000.0)
-}
+fun formatTokens(count: Int): String =
+    when {
+        count < 1_000 -> count.toString()
+        count < 1_000_000 -> "%.1fK".format(count / 1_000.0)
+        else -> "%.1fM".format(count / 1_000_000.0)
+    }
 
 /** Short human label for a model id ("Sonnet 5"); falls back to the raw id. */
 fun modelLabel(modelId: String): String =

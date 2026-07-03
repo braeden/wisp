@@ -44,8 +44,7 @@ enum class AgentModel(
     companion object {
         val DEFAULT = SONNET
 
-        fun fromName(name: String?): AgentModel =
-            entries.firstOrNull { it.name == name } ?: DEFAULT
+        fun fromName(name: String?): AgentModel = entries.firstOrNull { it.name == name } ?: DEFAULT
 
         /** Resolve a raw model id (e.g. from a session row); null if unknown. */
         fun fromModelId(modelId: String?): AgentModel? =
@@ -65,20 +64,23 @@ enum class AgentModel(
  */
 interface SettingsStore {
     fun isFastModeEnabled(): Boolean
+
     fun setFastModeEnabled(enabled: Boolean)
 
     /** Observable for UI; emits the current value immediately. */
     val fastMode: StateFlow<Boolean>
 
     fun getAgentModel(): AgentModel
+
     fun setAgentModel(model: AgentModel)
 
     /** Observable for UI; emits the current value immediately. */
     val agentModel: StateFlow<AgentModel>
 }
 
-class PrefsSettingsStore(context: Context) : SettingsStore {
-
+class PrefsSettingsStore(
+    context: Context,
+) : SettingsStore {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val _fastMode = MutableStateFlow(prefs.getBoolean(KEY_FAST_MODE, false))
     private val _agentModel =

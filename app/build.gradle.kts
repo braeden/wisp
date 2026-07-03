@@ -20,7 +20,10 @@ plugins {
 // If none are set, the release build gracefully falls back to the debug signing
 // config so `assembleRelease` still yields an installable (debug-signed) APK.
 // NEVER commit a keystore or password — *.jks / *.keystore are gitignored.
-fun releaseSecret(envName: String, propName: String): String? =
+fun releaseSecret(
+    envName: String,
+    propName: String,
+): String? =
     System.getenv(envName)?.takeIf { it.isNotBlank() }
         ?: (project.findProperty(propName) as String?)?.takeIf { it.isNotBlank() }
 
@@ -49,9 +52,10 @@ android {
         // `anthropicApiKey` Gradle property or ANTHROPIC_API_KEY env var; defaults
         // to empty so the smoke test skips cleanly when no key is present. NEVER
         // commit a key — this is resolved at build time from the environment only.
-        val anthropicApiKey = (project.findProperty("anthropicApiKey") as String?)
-            ?: System.getenv("ANTHROPIC_API_KEY")
-            ?: ""
+        val anthropicApiKey =
+            (project.findProperty("anthropicApiKey") as String?)
+                ?: System.getenv("ANTHROPIC_API_KEY")
+                ?: ""
         buildConfigField("String", "ANTHROPIC_API_KEY", "\"$anthropicApiKey\"")
     }
 

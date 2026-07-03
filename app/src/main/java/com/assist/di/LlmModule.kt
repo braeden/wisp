@@ -20,24 +20,26 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object LlmModule {
+    @Provides
+    @Singleton
+    fun provideLlmJson(): Json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     @Provides
     @Singleton
-    fun provideLlmJson(): Json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
-
-    @Provides
-    @Singleton
-    fun provideLlmOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        // Streaming turns can be long-lived; disable read/call timeouts and rely
-        // on coroutine cancellation to abort (interruptibility, phase-08).
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .callTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
+    fun provideLlmOkHttpClient(): OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            // Streaming turns can be long-lived; disable read/call timeouts and rely
+            // on coroutine cancellation to abort (interruptibility, phase-08).
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .callTimeout(0, TimeUnit.MILLISECONDS)
+            .build()
 
     @Provides
     @Singleton
@@ -49,9 +51,10 @@ object LlmModule {
         secretStore: SecretStore,
         okHttpClient: OkHttpClient,
         json: Json,
-    ): LlmClient = AnthropicLlmClient(
-        secretStore = secretStore,
-        okHttp = okHttpClient,
-        json = json,
-    )
+    ): LlmClient =
+        AnthropicLlmClient(
+            secretStore = secretStore,
+            okHttp = okHttpClient,
+            json = json,
+        )
 }

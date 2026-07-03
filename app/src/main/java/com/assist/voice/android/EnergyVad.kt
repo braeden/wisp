@@ -17,7 +17,10 @@ class EnergyVad(
     private var consecutive = 0
 
     /** RMS amplitude (0..~32767) of [frame]'s first [length] samples. */
-    fun rms(frame: ShortArray, length: Int = frame.size): Double {
+    fun rms(
+        frame: ShortArray,
+        length: Int = frame.size,
+    ): Double {
         if (length <= 0) return 0.0
         var sum = 0.0
         for (i in 0 until length) {
@@ -31,7 +34,10 @@ class EnergyVad(
      * Feed one frame; returns true the moment sustained speech is detected. After
      * a positive detection the counter resets so the caller can re-arm.
      */
-    fun onFrame(frame: ShortArray, length: Int = frame.size): Boolean {
+    fun onFrame(
+        frame: ShortArray,
+        length: Int = frame.size,
+    ): Boolean {
         val loud = rms(frame, length) >= thresholdRms
         consecutive = if (loud) consecutive + 1 else 0
         if (consecutive >= triggerFrames) {

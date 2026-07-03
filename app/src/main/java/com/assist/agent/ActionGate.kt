@@ -17,7 +17,6 @@ import android.util.Log
  * [GateInput.allowlist] (configurable in settings) and skip the gate.
  */
 class ActionGate {
-
     /** Pure classification of a resolved action. No side effects. */
     fun classify(input: GateInput): GateDecision {
         val category = categoryFor(input) ?: return GateDecision.allowed()
@@ -36,7 +35,11 @@ class ActionGate {
      * gated action, emits [AgentEvent.AwaitingConfirmation], asks the user, logs
      * the decision, and proceeds only on an affirmative answer.
      */
-    suspend fun confirm(input: GateInput, userIo: UserIo, bus: AgentEventBus): Boolean {
+    suspend fun confirm(
+        input: GateInput,
+        userIo: UserIo,
+        bus: AgentEventBus,
+    ): Boolean {
         val decision = classify(input)
         if (!decision.gated) return true
         val category = decision.category!!
@@ -58,23 +61,41 @@ class ActionGate {
             return GateCategory.PASSWORD
         }
         // Actions inferred from the element the model is tapping/pressing.
-        val actionTools = setOf(
-            AgentTools.TAP,
-            AgentTools.TAP_XY,
-            AgentTools.LONG_PRESS,
-            AgentTools.LONG_PRESS_XY,
-        )
+        val actionTools =
+            setOf(
+                AgentTools.TAP,
+                AgentTools.TAP_XY,
+                AgentTools.LONG_PRESS,
+                AgentTools.LONG_PRESS_XY,
+            )
         if (input.toolName in actionTools || input.toolName == AgentTools.PRESS_KEY) {
-            val haystack = input.targetText?.lowercase()?.trim().orEmpty()
+            val haystack =
+                input.targetText
+                    ?.lowercase()
+                    ?.trim()
+                    .orEmpty()
             if (haystack.isNotEmpty()) {
-                KEYWORDS.firstOrNull { (kw, _) -> haystack.containsWord(kw) }?.let { return it.second }
+                KEYWORDS
+                    .firstOrNull { (kw, _) ->
+                        haystack.containsWord(kw)
+                    }?.let { return it.second }
             }
         }
         return null
     }
 
-    private fun confirmationQuestion(input: GateInput, category: GateCategory): String {
-        val target = input.targetText?.takeIf { it.isNotBlank() }?.let { " \"${it.take(60)}\"" }.orEmpty()
+    private fun confirmationQuestion(
+        input: GateInput,
+        category: GateCategory,
+    ): String {
+        val target =
+            input.targetText
+                ?.takeIf { it.isNotBlank() }
+                ?.let {
+                    " \"${it.take(
+                        60,
+                    )}\""
+                }.orEmpty()
         return "Confirm ${category.label} action$target? (yes/no)"
     }
 
@@ -84,40 +105,46 @@ class ActionGate {
         /** True if [answer] reads as an affirmative yes. */
         fun isAffirmative(answer: String): Boolean {
             val a = answer.trim().lowercase()
-            return a in AFFIRMATIVES || a.startsWith("yes") || a.startsWith("confirm") ||
-                a.startsWith("approve") || a.startsWith("go ahead") || a.startsWith("do it")
+            return a in AFFIRMATIVES ||
+                a.startsWith("yes") ||
+                a.startsWith("confirm") ||
+                a.startsWith("approve") ||
+                a.startsWith("go ahead") ||
+                a.startsWith("do it")
         }
 
-        private val AFFIRMATIVES = setOf("y", "yes", "yeah", "yep", "ok", "okay", "sure", "confirm", "approved")
+        private val AFFIRMATIVES =
+            setOf("y", "yes", "yeah", "yep", "ok", "okay", "sure", "confirm", "approved")
 
         /**
          * Keyword → category, checked against the target element's text. Ordered so
          * the most specific/severe categories win first.
          */
-        private val KEYWORDS: List<Pair<String, GateCategory>> = listOf(
-            "uninstall" to GateCategory.DELETE,
-            "delete" to GateCategory.DELETE,
-            "remove" to GateCategory.DELETE,
-            "erase" to GateCategory.DELETE,
-            "factory reset" to GateCategory.DELETE,
-            "format" to GateCategory.DELETE,
-            "pay" to GateCategory.PAY,
-            "buy" to GateCategory.PAY,
-            "purchase" to GateCategory.PAY,
-            "checkout" to GateCategory.PAY,
-            "place order" to GateCategory.PAY,
-            "order now" to GateCategory.PAY,
-            "subscribe" to GateCategory.PAY,
-            "install" to GateCategory.INSTALL,
-            "update all" to GateCategory.INSTALL,
-            "send" to GateCategory.SEND,
-            "share" to GateCategory.SEND,
-            "post" to GateCategory.SEND,
-            "tweet" to GateCategory.SEND,
-            "reply" to GateCategory.SEND,
-            "call" to GateCategory.CALL,
-            "dial" to GateCategory.CALL,
-        )
+        private val KEYWORDS: List<Pair<String, GateCategory>> =
+            listOf(
+                "uninstall" to GateCategory.DELETE,
+                "delete" to GateCategory.DELETE,
+                "remove" to GateCategory.DELETE,
+                "erase" to GateCategory.DELETE,
+                "factory reset" to GateCategory.DELETE,
+                "format" to GateCategory.DELETE,
+                "pay" to GateCategory.PAY,
+                "buy" to GateCategory.PAY,
+                "purchase" to GateCategory.PAY,
+                "checkout" to GateCategory.PAY,
+                "place order" to GateCategory.PAY,
+                "order now" to GateCategory.PAY,
+                "subscribe" to GateCategory.PAY,
+                "install" to GateCategory.INSTALL,
+                "update all" to GateCategory.INSTALL,
+                "send" to GateCategory.SEND,
+                "share" to GateCategory.SEND,
+                "post" to GateCategory.SEND,
+                "tweet" to GateCategory.SEND,
+                "reply" to GateCategory.SEND,
+                "call" to GateCategory.CALL,
+                "dial" to GateCategory.CALL,
+            )
 
         /** Word-boundary contains: avoids "install" matching inside "reinstalling" etc. minimally. */
         private fun String.containsWord(word: String): Boolean {
@@ -157,7 +184,10 @@ data class GateDecision(
 }
 
 /** Sensitive/irreversible action categories that require confirmation. */
-enum class GateCategory(val label: String, val reason: String) {
+enum class GateCategory(
+    val label: String,
+    val reason: String,
+) {
     SEND("send", "Sends a message/content that cannot be unsent."),
     PAY("payment", "Spends money / completes a purchase."),
     DELETE("delete", "Deletes or removes data irreversibly."),

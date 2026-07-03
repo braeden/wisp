@@ -41,27 +41,28 @@ class AnthropicLlmClient(
     private val json: Json = defaultJson,
     private val baseUrl: String = DEFAULT_BASE_URL,
 ) : LlmClient {
-
     override suspend fun send(
         request: LlmRequest,
         onEvent: (LlmStreamEvent) -> Unit,
     ): LlmResponse {
         val body = AnthropicRequestFactory.messagesBody(json, request, stream = true)
-        val httpRequest = buildHttpRequest(
-            path = "/v1/messages",
-            body = body.toString(),
-            betas = AnthropicRequestFactory.betaHeaders(request),
-        )
+        val httpRequest =
+            buildHttpRequest(
+                path = "/v1/messages",
+                body = body.toString(),
+                betas = AnthropicRequestFactory.betaHeaders(request),
+            )
         return executeStreaming(httpRequest, onEvent)
     }
 
     override suspend fun countTokens(request: LlmRequest): Int {
         val body = AnthropicRequestFactory.countTokensBody(json, request)
-        val httpRequest = buildHttpRequest(
-            path = "/v1/messages/count_tokens",
-            body = body.toString(),
-            betas = AnthropicRequestFactory.betaHeaders(request),
-        )
+        val httpRequest =
+            buildHttpRequest(
+                path = "/v1/messages/count_tokens",
+                body = body.toString(),
+                betas = AnthropicRequestFactory.betaHeaders(request),
+            )
         val payload = executeForString(httpRequest)
         val obj = json.parseToJsonElement(payload).jsonObject
         return obj["input_tokens"]?.jsonPrimitive?.intOrNull ?: 0
@@ -76,15 +77,17 @@ class AnthropicLlmClient(
         request: LlmRequest,
         keepLast: Int? = null,
         onEvent: (LlmStreamEvent) -> Unit = {},
-    ): LlmResponse = send(
-        request.copy(
-            contextManagement = (request.contextManagement ?: ContextManagement()).copy(
-                clearToolUses = true,
-                keepLastToolUses = keepLast,
+    ): LlmResponse =
+        send(
+            request.copy(
+                contextManagement =
+                    (request.contextManagement ?: ContextManagement()).copy(
+                        clearToolUses = true,
+                        keepLastToolUses = keepLast,
+                    ),
             ),
-        ),
-        onEvent,
-    )
+            onEvent,
+        )
 
     /**
      * Convenience wrapper for the agent's `compact_conversation` tool: runs the
@@ -95,24 +98,35 @@ class AnthropicLlmClient(
     suspend fun compactConversation(
         request: LlmRequest,
         onEvent: (LlmStreamEvent) -> Unit = {},
-    ): LlmResponse = send(
-        request.copy(
-            contextManagement = (request.contextManagement ?: ContextManagement()).copy(compact = true),
-        ),
-        onEvent,
-    )
+    ): LlmResponse =
+        send(
+            request.copy(
+                contextManagement =
+                    (request.contextManagement ?: ContextManagement()).copy(
+                        compact = true,
+                    ),
+            ),
+            onEvent,
+        )
 
     // --- HTTP ---------------------------------------------------------------
 
-    private fun buildHttpRequest(path: String, body: String, betas: List<String>): Request {
-        val apiKey = secretStore.getApiKey()
-            ?: throw AnthropicAuthException("No Anthropic API key configured.")
-        val builder = Request.Builder()
-            .url(baseUrl + path)
-            .post(body.toRequestBody(JSON_MEDIA_TYPE))
-            .header("x-api-key", apiKey)
-            .header("anthropic-version", ANTHROPIC_VERSION)
-            .header("content-type", "application/json")
+    private fun buildHttpRequest(
+        path: String,
+        body: String,
+        betas: List<String>,
+    ): Request {
+        val apiKey =
+            secretStore.getApiKey()
+                ?: throw AnthropicAuthException("No Anthropic API key configured.")
+        val builder =
+            Request
+                .Builder()
+                .url(baseUrl + path)
+                .post(body.toRequestBody(JSON_MEDIA_TYPE))
+                .header("x-api-key", apiKey)
+                .header("anthropic-version", ANTHROPIC_VERSION)
+                .header("content-type", "application/json")
         if (betas.isNotEmpty()) builder.header("anthropic-beta", betas.joinToString(","))
         return builder.build()
     }
@@ -138,23 +152,24 @@ class AnthropicLlmClient(
     private suspend fun executeStreaming(
         httpRequest: Request,
         onEvent: (LlmStreamEvent) -> Unit,
-    ): LlmResponse = withContext(Dispatchers.IO) {
-        val call = okHttp.newCall(httpRequest)
-        val cancelHandle = coroutineContext[Job]?.invokeOnCompletion { call.cancel() }
-        try {
-            call.execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw mapError(response, response.body?.string().orEmpty())
+    ): LlmResponse =
+        withContext(Dispatchers.IO) {
+            val call = okHttp.newCall(httpRequest)
+            val cancelHandle = coroutineContext[Job]?.invokeOnCompletion { call.cancel() }
+            try {
+                call.execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw mapError(response, response.body?.string().orEmpty())
+                    }
+                    parseStream(response, onEvent)
                 }
-                parseStream(response, onEvent)
+            } catch (io: IOException) {
+                coroutineContext.ensureActive()
+                throw AnthropicNetworkException("Network error streaming from Anthropic API", io)
+            } finally {
+                cancelHandle?.dispose()
             }
-        } catch (io: IOException) {
-            coroutineContext.ensureActive()
-            throw AnthropicNetworkException("Network error streaming from Anthropic API", io)
-        } finally {
-            cancelHandle?.dispose()
         }
-    }
 
     // --- SSE parsing --------------------------------------------------------
 
@@ -162,8 +177,9 @@ class AnthropicLlmClient(
         response: Response,
         onEvent: (LlmStreamEvent) -> Unit,
     ): LlmResponse {
-        val source = response.body?.source()
-            ?: throw AnthropicNetworkException("Empty streaming response body")
+        val source =
+            response.body?.source()
+                ?: throw AnthropicNetworkException("Empty streaming response body")
         val accumulator = StreamAccumulator()
 
         while (true) {
@@ -172,7 +188,8 @@ class AnthropicLlmClient(
             if (!line.startsWith(DATA_PREFIX)) continue
             val payload = line.substring(DATA_PREFIX.length).trim()
             if (payload.isEmpty() || payload == "[DONE]") continue
-            val event = runCatching { json.parseToJsonElement(payload).jsonObject }.getOrNull() ?: continue
+            val event =
+                runCatching { json.parseToJsonElement(payload).jsonObject }.getOrNull() ?: continue
             handleEvent(event, accumulator, onEvent)
             if (accumulator.done) break
         }
@@ -213,29 +230,33 @@ class AnthropicLlmClient(
                 val delta = event["delta"]?.jsonObject ?: return
                 val builder = acc.blocks[index] ?: return
                 when (delta.type) {
-                    "text_delta" -> delta.stringOrNull("text")?.let {
-                        builder.text.append(it)
-                        onEvent(LlmStreamEvent.TextDelta(it))
-                    }
+                    "text_delta" ->
+                        delta.stringOrNull("text")?.let {
+                            builder.text.append(it)
+                            onEvent(LlmStreamEvent.TextDelta(it))
+                        }
 
-                    "thinking_delta" -> delta.stringOrNull("thinking")?.let {
-                        builder.thinking.append(it)
-                        onEvent(LlmStreamEvent.ThinkingDelta(it))
-                    }
+                    "thinking_delta" ->
+                        delta.stringOrNull("thinking")?.let {
+                            builder.thinking.append(it)
+                            onEvent(LlmStreamEvent.ThinkingDelta(it))
+                        }
 
-                    "signature_delta" -> delta.stringOrNull("signature")?.let {
-                        builder.signature = (builder.signature ?: "") + it
-                    }
+                    "signature_delta" ->
+                        delta.stringOrNull("signature")?.let {
+                            builder.signature = (builder.signature ?: "") + it
+                        }
 
-                    "input_json_delta" -> delta.stringOrNull("partial_json")?.let {
-                        builder.toolInput.append(it)
-                        onEvent(
-                            LlmStreamEvent.ToolUseArgsDelta(
-                                id = builder.toolId.orEmpty(),
-                                partialJson = it,
-                            ),
-                        )
-                    }
+                    "input_json_delta" ->
+                        delta.stringOrNull("partial_json")?.let {
+                            builder.toolInput.append(it)
+                            onEvent(
+                                LlmStreamEvent.ToolUseArgsDelta(
+                                    id = builder.toolId.orEmpty(),
+                                    partialJson = it,
+                                ),
+                            )
+                        }
                 }
             }
 
@@ -263,17 +284,28 @@ class AnthropicLlmClient(
         }
     }
 
-    private fun mergeUsage(prev: Usage, usage: JsonObject): Usage = prev.copy(
-        inputTokens = usage.intOrNull("input_tokens") ?: prev.inputTokens,
-        outputTokens = usage.intOrNull("output_tokens") ?: prev.outputTokens,
-        cacheReadTokens = usage.intOrNull("cache_read_input_tokens") ?: prev.cacheReadTokens,
-        cacheWriteTokens = usage.intOrNull("cache_creation_input_tokens") ?: prev.cacheWriteTokens,
-        // Fast mode (phase-12): "fast" | "standard", when the provider reports it.
-        speed = usage.stringOrNull("speed") ?: prev.speed,
-    )
+    private fun mergeUsage(
+        prev: Usage,
+        usage: JsonObject,
+    ): Usage =
+        prev.copy(
+            inputTokens = usage.intOrNull("input_tokens") ?: prev.inputTokens,
+            outputTokens = usage.intOrNull("output_tokens") ?: prev.outputTokens,
+            cacheReadTokens = usage.intOrNull("cache_read_input_tokens") ?: prev.cacheReadTokens,
+            cacheWriteTokens =
+                usage.intOrNull("cache_creation_input_tokens") ?: prev.cacheWriteTokens,
+            // Fast mode (phase-12): "fast" | "standard", when the provider reports it.
+            speed = usage.stringOrNull("speed") ?: prev.speed,
+        )
 
-    private fun mapError(response: Response, body: String): AnthropicException {
-        val errObj = runCatching { json.parseToJsonElement(body).jsonObject["error"]?.jsonObject }.getOrNull()
+    private fun mapError(
+        response: Response,
+        body: String,
+    ): AnthropicException {
+        val errObj =
+            runCatching {
+                json.parseToJsonElement(body).jsonObject["error"]?.jsonObject
+            }.getOrNull()
         val type = errObj?.stringOrNull("type")
         val message = errObj?.stringOrNull("message") ?: "HTTP ${response.code}"
         val retryAfter = response.header("retry-after")?.toLongOrNull()
@@ -282,7 +314,9 @@ class AnthropicLlmClient(
 
     // --- accumulator --------------------------------------------------------
 
-    private class BlockBuilder(val type: String) {
+    private class BlockBuilder(
+        val type: String,
+    ) {
         val text = StringBuilder()
         val thinking = StringBuilder()
         var signature: String? = null
@@ -297,8 +331,10 @@ class AnthropicLlmClient(
         var stopReason = ""
         var done = false
 
-        fun blockAt(index: Int, type: String): BlockBuilder =
-            blocks.getOrPut(index) { BlockBuilder(type) }
+        fun blockAt(
+            index: Int,
+            type: String,
+        ): BlockBuilder = blocks.getOrPut(index) { BlockBuilder(type) }
 
         fun toResponse(): LlmResponse {
             val content = mutableListOf<ContentBlock>()
@@ -313,10 +349,12 @@ class AnthropicLlmClient(
                         content += ContentBlock.Text(t)
                     }
 
-                    "thinking" -> content += ContentBlock.Thinking(
-                        text = builder.thinking.toString(),
-                        signature = builder.signature,
-                    )
+                    "thinking" ->
+                        content +=
+                            ContentBlock.Thinking(
+                                text = builder.thinking.toString(),
+                                signature = builder.signature,
+                            )
 
                     "tool_use" -> {
                         val id = builder.toolId.orEmpty()
@@ -343,10 +381,11 @@ class AnthropicLlmClient(
         private const val DATA_PREFIX = "data:"
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
-        val defaultJson: Json = Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-        }
+        val defaultJson: Json =
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+            }
     }
 }
 
@@ -355,8 +394,6 @@ class AnthropicLlmClient(
 private val JsonObject.type: String?
     get() = this["type"]?.jsonPrimitive?.content
 
-private fun JsonObject.stringOrNull(key: String): String? =
-    this[key]?.jsonPrimitive?.content
+private fun JsonObject.stringOrNull(key: String): String? = this[key]?.jsonPrimitive?.content
 
-private fun JsonObject.intOrNull(key: String): Int? =
-    this[key]?.jsonPrimitive?.intOrNull
+private fun JsonObject.intOrNull(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull

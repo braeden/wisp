@@ -20,13 +20,30 @@ enum class TranscriptRole { USER, ASSISTANT, SYSTEM, SYSTEM_NOTE, TOOL_RESULT }
 
 /** A single content block in a decoded transcript message. */
 sealed interface TranscriptBlock {
-    data class Text(val text: String) : TranscriptBlock
-    data class Thinking(val text: String) : TranscriptBlock
-    data class ToolUse(val id: String, val name: String, val argsJson: String) : TranscriptBlock
-    data class ToolResult(val toolUseId: String, val text: String, val isError: Boolean) : TranscriptBlock
+    data class Text(
+        val text: String,
+    ) : TranscriptBlock
+
+    data class Thinking(
+        val text: String,
+    ) : TranscriptBlock
+
+    data class ToolUse(
+        val id: String,
+        val name: String,
+        val argsJson: String,
+    ) : TranscriptBlock
+
+    data class ToolResult(
+        val toolUseId: String,
+        val text: String,
+        val isError: Boolean,
+    ) : TranscriptBlock
 
     /** A screenshot reference; [dropped] once it has been evicted from context. */
-    data class Image(val dropped: Boolean) : TranscriptBlock
+    data class Image(
+        val dropped: Boolean,
+    ) : TranscriptBlock
 }
 
 /** One decoded message in a session transcript. */

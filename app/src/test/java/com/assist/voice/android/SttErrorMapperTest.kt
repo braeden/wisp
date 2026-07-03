@@ -7,7 +7,6 @@ import org.junit.Test
 
 /** Pure mapping test — reads `SpeechRecognizer.ERROR_*` compile-time constants. */
 class SttErrorMapperTest {
-
     @Test
     fun `no match maps to NO_MATCH`() {
         assertEquals(SttError.NO_MATCH, SttErrorMapper.map(SpeechRecognizer.ERROR_NO_MATCH))

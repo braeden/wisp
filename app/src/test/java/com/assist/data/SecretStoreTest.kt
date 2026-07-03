@@ -12,11 +12,12 @@ import org.junit.Test
  * hasApiKey), without touching the Android Keystore.
  */
 class SecretStoreTest {
-
     /** Mirrors EncryptedSecretStore's normalization rules. */
     private class FakeSecretStore : SecretStore {
         private var value: String? = null
+
         override fun getApiKey(): String? = value?.takeIf { it.isNotBlank() }
+
         override fun setApiKey(value: String) {
             this.value = if (value.isBlank()) null else value.trim()
         }

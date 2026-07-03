@@ -23,7 +23,6 @@ import com.assist.llm.Role
  * barge-in/budget ergonomics and persistence are a follow-on.
  */
 object SystemTurnPlacement {
-
     /** True if a system turn may be legally appended after [messages]. */
     fun canAppend(messages: List<LlmMessage>): Boolean =
         messages.isNotEmpty() && messages.last().role == Role.USER
@@ -32,14 +31,18 @@ object SystemTurnPlacement {
      * Return [messages] with a system turn carrying [text] appended, or throw
      * [IllegalStateException] if the position is illegal (guard misuse in tests).
      */
-    fun append(messages: List<LlmMessage>, text: String): List<LlmMessage> {
+    fun append(
+        messages: List<LlmMessage>,
+        text: String,
+    ): List<LlmMessage> {
         check(canAppend(messages)) {
             "Illegal system-turn placement: must follow a user/tool_result turn (was " +
                 "${messages.lastOrNull()?.role ?: "empty"})."
         }
-        return messages + LlmMessage(
-            role = Role.SYSTEM,
-            content = listOf(ContentBlock.Text(text)),
-        )
+        return messages +
+            LlmMessage(
+                role = Role.SYSTEM,
+                content = listOf(ContentBlock.Text(text)),
+            )
     }
 }

@@ -18,8 +18,10 @@ import androidx.savedstate.SavedStateRegistryOwner
  * Drive it alongside the window: [onCreate] before `addView`, then [onResume]; call
  * [onDestroy] after `removeView`.
  */
-class OverlayLifecycleOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
-
+class OverlayLifecycleOwner :
+    LifecycleOwner,
+    ViewModelStoreOwner,
+    SavedStateRegistryOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val store = ViewModelStore()
     private val savedStateController = SavedStateRegistryController.create(this)

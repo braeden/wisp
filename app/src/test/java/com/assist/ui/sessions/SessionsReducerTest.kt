@@ -7,10 +7,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SessionsReducerTest {
-
-    private fun summary(id: Long, title: String, cost: Double, msgs: Int, updated: Long) =
-        SessionSummary(
-            session = SessionEntity(
+    private fun summary(
+        id: Long,
+        title: String,
+        cost: Double,
+        msgs: Int,
+        updated: Long,
+    ) = SessionSummary(
+        session =
+            SessionEntity(
                 id = id,
                 title = title,
                 createdAt = 1,
@@ -19,18 +24,19 @@ class SessionsReducerTest {
                 status = SessionStatus.ACTIVE,
                 systemPromptVersion = 1,
             ),
-            messageCount = msgs,
-            costUsd = cost,
-        )
+        messageCount = msgs,
+        costUsd = cost,
+    )
 
     @Test
     fun `maps summaries to rows preserving order and fields`() {
-        val state = SessionsReducer.reduce(
-            listOf(
-                summary(1, "Open clock", 0.0175, 6, 200),
-                summary(2, "Find flight", 0.5, 12, 100),
-            ),
-        )
+        val state =
+            SessionsReducer.reduce(
+                listOf(
+                    summary(1, "Open clock", 0.0175, 6, 200),
+                    summary(2, "Find flight", 0.5, 12, 100),
+                ),
+            )
         assertEquals(false, state.loading)
         assertEquals(2, state.rows.size)
         assertEquals(1L, state.rows[0].id)

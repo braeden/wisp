@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
-
     @Insert
     suspend fun insert(message: MessageEntity): Long
 
@@ -21,7 +20,10 @@ interface MessageDao {
     suspend fun maxSeq(sessionId: Long): Int?
 
     @Query("DELETE FROM messages WHERE sessionId = :sessionId AND seq < :beforeSeq")
-    suspend fun deleteBeforeSeq(sessionId: Long, beforeSeq: Int)
+    suspend fun deleteBeforeSeq(
+        sessionId: Long,
+        beforeSeq: Int,
+    )
 
     @Query("DELETE FROM messages WHERE sessionId = :sessionId")
     suspend fun deleteAll(sessionId: Long)

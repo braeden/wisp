@@ -7,11 +7,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ActionGateTest {
-
     private val gate = ActionGate()
 
-    private fun tap(text: String?, tool: String = AgentTools.TAP, allowlist: Set<String> = emptySet()) =
-        GateInput(toolName = tool, argsJson = "{}", targetText = text, allowlist = allowlist)
+    private fun tap(
+        text: String?,
+        tool: String = AgentTools.TAP,
+        allowlist: Set<String> = emptySet(),
+    ) = GateInput(toolName = tool, argsJson = "{}", targetText = text, allowlist = allowlist)
 
     @Test
     fun `tap on a Send control is gated as SEND`() {
@@ -62,23 +64,30 @@ class ActionGateTest {
 
     @Test
     fun `set_text into a password field is gated as PASSWORD`() {
-        val d = gate.classify(
-            GateInput(
-                toolName = AgentTools.SET_TEXT,
-                argsJson = "{}",
-                targetText = "Password",
-                isPasswordField = true,
-            ),
-        )
+        val d =
+            gate.classify(
+                GateInput(
+                    toolName = AgentTools.SET_TEXT,
+                    argsJson = "{}",
+                    targetText = "Password",
+                    isPasswordField = true,
+                ),
+            )
         assertTrue(d.gated)
         assertEquals(GateCategory.PASSWORD, d.category)
     }
 
     @Test
     fun `set_text into a normal field is not gated`() {
-        val d = gate.classify(
-            GateInput(toolName = AgentTools.SET_TEXT, argsJson = "{}", targetText = "Search", isPasswordField = false),
-        )
+        val d =
+            gate.classify(
+                GateInput(
+                    toolName = AgentTools.SET_TEXT,
+                    argsJson = "{}",
+                    targetText = "Search",
+                    isPasswordField = false,
+                ),
+            )
         assertFalse(d.gated)
     }
 

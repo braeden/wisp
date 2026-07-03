@@ -13,7 +13,6 @@ class ContextTracker(
     private val db: AssistDatabase,
     private val costCalculator: CostCalculator,
 ) {
-
     /** Compute the current [ContextStatus] for [sessionId]. */
     suspend fun contextStatus(sessionId: Long): ContextStatus {
         val session = db.sessionDao().getById(sessionId)
@@ -44,17 +43,18 @@ class ContextTracker(
     ): Int {
         var tokens = 0
         for (block in blocks) {
-            tokens += when (block) {
-                is StoredBlock.Text -> estimateText(block.text)
-                is StoredBlock.Thinking -> estimateText(block.text)
-                is StoredBlock.ToolUse ->
-                    estimateText(block.name) + estimateText(block.inputJson)
-                is StoredBlock.ToolResult -> estimateBlocks(block.content, mediaById)
-                is StoredBlock.ImageRef -> {
-                    val media = mediaById[block.mediaId]
-                    if (media != null && !media.dropped) IMAGE_TOKENS else 0
+            tokens +=
+                when (block) {
+                    is StoredBlock.Text -> estimateText(block.text)
+                    is StoredBlock.Thinking -> estimateText(block.text)
+                    is StoredBlock.ToolUse ->
+                        estimateText(block.name) + estimateText(block.inputJson)
+                    is StoredBlock.ToolResult -> estimateBlocks(block.content, mediaById)
+                    is StoredBlock.ImageRef -> {
+                        val media = mediaById[block.mediaId]
+                        if (media != null && !media.dropped) IMAGE_TOKENS else 0
+                    }
                 }
-            }
         }
         return tokens
     }

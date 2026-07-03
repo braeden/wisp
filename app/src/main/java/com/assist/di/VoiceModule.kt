@@ -32,16 +32,17 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object VoiceModule {
+    @Provides
+    @Singleton
+    fun provideTtsEngine(
+        @ApplicationContext context: Context,
+    ): TtsEngine = AndroidTtsEngine(context)
 
     @Provides
     @Singleton
-    fun provideTtsEngine(@ApplicationContext context: Context): TtsEngine =
-        AndroidTtsEngine(context)
-
-    @Provides
-    @Singleton
-    fun provideSttEngine(@ApplicationContext context: Context): SttEngine =
-        AndroidSttEngine(context)
+    fun provideSttEngine(
+        @ApplicationContext context: Context,
+    ): SttEngine = AndroidSttEngine(context)
 
     @Provides
     @Singleton
@@ -49,8 +50,10 @@ object VoiceModule {
 
     @Provides
     @Singleton
-    fun provideVoiceProvider(stt: SttEngine, tts: TtsEngine): VoiceProvider =
-        AndroidVoiceProvider(stt, tts)
+    fun provideVoiceProvider(
+        stt: SttEngine,
+        tts: TtsEngine,
+    ): VoiceProvider = AndroidVoiceProvider(stt, tts)
 
     @Provides
     @Singleton
@@ -60,13 +63,14 @@ object VoiceModule {
         arbiter: AudioSessionArbiter,
         bus: AgentEventBus,
         typedReplies: TypedReplySource,
-    ): UserIo = VoiceUserIo(
-        tts = tts,
-        stt = stt,
-        arbiter = arbiter,
-        bus = bus,
-        typedReplies = typedReplies,
-    )
+    ): UserIo =
+        VoiceUserIo(
+            tts = tts,
+            stt = stt,
+            arbiter = arbiter,
+            bus = bus,
+            typedReplies = typedReplies,
+        )
 
     @Provides
     @Singleton

@@ -26,7 +26,10 @@ data class Bounds(
     /** True when the rectangle has no area (zero/negative width or height). */
     val isEmpty: Boolean get() = width <= 0 || height <= 0
 
-    fun contains(x: Int, y: Int): Boolean = x in left until right && y in top until bottom
+    fun contains(
+        x: Int,
+        y: Int,
+    ): Boolean = x in left until right && y in top until bottom
 
     companion object {
         val ZERO = Bounds(0, 0, 0, 0)

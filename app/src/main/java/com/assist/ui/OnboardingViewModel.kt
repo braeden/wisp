@@ -10,15 +10,16 @@ import javax.inject.Inject
 
 /** UI state + actions for the onboarding/home screen. */
 @HiltViewModel
-class OnboardingViewModel @Inject constructor(
-    private val secretStore: SecretStore,
-) : ViewModel() {
+class OnboardingViewModel
+    @Inject
+    constructor(
+        private val secretStore: SecretStore,
+    ) : ViewModel() {
+        private val _hasApiKey = MutableStateFlow(secretStore.hasApiKey())
+        val hasApiKey: StateFlow<Boolean> = _hasApiKey.asStateFlow()
 
-    private val _hasApiKey = MutableStateFlow(secretStore.hasApiKey())
-    val hasApiKey: StateFlow<Boolean> = _hasApiKey.asStateFlow()
-
-    fun saveApiKey(raw: String) {
-        secretStore.setApiKey(raw)
-        _hasApiKey.value = secretStore.hasApiKey()
+        fun saveApiKey(raw: String) {
+            secretStore.setApiKey(raw)
+            _hasApiKey.value = secretStore.hasApiKey()
+        }
     }
-}

@@ -30,11 +30,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 )
 abstract class AssistDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
+
     abstract fun messageDao(): MessageDao
+
     abstract fun toolCallDao(): ToolCallDao
+
     abstract fun usageDao(): UsageDao
+
     abstract fun mediaDao(): MediaDao
+
     abstract fun noteDao(): NoteDao
+
     abstract fun taskRecipeDao(): TaskRecipeDao
 
     companion object {
@@ -46,24 +52,25 @@ abstract class AssistDatabase : RoomDatabase() {
          * The CREATE statements mirror Room's generated schema exactly (see
          * `schemas/com.assist.data.AssistDatabase/2.json`).
          */
-        val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `task_recipes` (" +
-                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                        "`title` TEXT NOT NULL, " +
-                        "`intentKeywords` TEXT NOT NULL, " +
-                        "`memoryPath` TEXT NOT NULL, " +
-                        "`appPackage` TEXT, " +
-                        "`useCount` INTEGER NOT NULL, " +
-                        "`lastUsedAt` INTEGER NOT NULL, " +
-                        "`createdAt` INTEGER NOT NULL)",
-                )
-                db.execSQL(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
-                        "`index_task_recipes_memoryPath` ON `task_recipes` (`memoryPath`)",
-                )
+        val MIGRATION_1_2 =
+            object : Migration(1, 2) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `task_recipes` (" +
+                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                            "`title` TEXT NOT NULL, " +
+                            "`intentKeywords` TEXT NOT NULL, " +
+                            "`memoryPath` TEXT NOT NULL, " +
+                            "`appPackage` TEXT, " +
+                            "`useCount` INTEGER NOT NULL, " +
+                            "`lastUsedAt` INTEGER NOT NULL, " +
+                            "`createdAt` INTEGER NOT NULL)",
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                            "`index_task_recipes_memoryPath` ON `task_recipes` (`memoryPath`)",
+                    )
+                }
             }
-        }
     }
 }

@@ -25,7 +25,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AgentModule {
-
     @Provides
     @Singleton
     fun provideSystemPromptProvider(

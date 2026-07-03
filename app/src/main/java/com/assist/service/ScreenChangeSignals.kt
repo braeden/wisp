@@ -14,19 +14,21 @@ import javax.inject.Singleton
  * drops the oldest under backpressure so a slow collector never blocks the service.
  */
 @Singleton
-class ScreenChangeSignals @Inject constructor() {
+class ScreenChangeSignals
+    @Inject
+    constructor() {
+        private val _events =
+            MutableSharedFlow<Unit>(
+                replay = 0,
+                extraBufferCapacity = 64,
+                onBufferOverflow = BufferOverflow.DROP_OLDEST,
+            )
 
-    private val _events = MutableSharedFlow<Unit>(
-        replay = 0,
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
+        /** Fires (Unit) each time the foreground UI meaningfully changes. */
+        val events: SharedFlow<Unit> = _events.asSharedFlow()
 
-    /** Fires (Unit) each time the foreground UI meaningfully changes. */
-    val events: SharedFlow<Unit> = _events.asSharedFlow()
-
-    /** Called by the service from `onAccessibilityEvent`. Never blocks. */
-    fun signal() {
-        _events.tryEmit(Unit)
+        /** Called by the service from `onAccessibilityEvent`. Never blocks. */
+        fun signal() {
+            _events.tryEmit(Unit)
+        }
     }
-}

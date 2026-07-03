@@ -9,7 +9,6 @@ import android.graphics.Bitmap
  * connected, actions fail gracefully with a descriptive [ToolOutcome].
  */
 interface DeviceController {
-
     /** Serialize the foreground window and refresh the live id→node frame. */
     suspend fun getScreenState(): ScreenState
 
@@ -17,19 +16,44 @@ interface DeviceController {
     suspend fun takeScreenshot(): Bitmap?
 
     suspend fun tap(elementId: Int): ToolOutcome
-    suspend fun tapXy(x: Int, y: Int): ToolOutcome
+
+    suspend fun tapXy(
+        x: Int,
+        y: Int,
+    ): ToolOutcome
 
     suspend fun longPress(elementId: Int): ToolOutcome
-    suspend fun longPressXy(x: Int, y: Int): ToolOutcome
 
-    suspend fun swipe(direction: SwipeDirection, fraction: Double = 0.6): ToolOutcome
-    suspend fun swipeXy(x1: Int, y1: Int, x2: Int, y2: Int, durationMs: Long = GestureFactory.SWIPE_MS): ToolOutcome
+    suspend fun longPressXy(
+        x: Int,
+        y: Int,
+    ): ToolOutcome
 
-    suspend fun scroll(elementId: Int, forward: Boolean = true): ToolOutcome
+    suspend fun swipe(
+        direction: SwipeDirection,
+        fraction: Double = 0.6,
+    ): ToolOutcome
+
+    suspend fun swipeXy(
+        x1: Int,
+        y1: Int,
+        x2: Int,
+        y2: Int,
+        durationMs: Long = GestureFactory.SWIPE_MS,
+    ): ToolOutcome
+
+    suspend fun scroll(
+        elementId: Int,
+        forward: Boolean = true,
+    ): ToolOutcome
+
     suspend fun scroll(direction: SwipeDirection): ToolOutcome
 
     /** Focus the node and set its text. Password fields are flagged in the outcome. */
-    suspend fun setText(elementId: Int, text: String): ToolOutcome
+    suspend fun setText(
+        elementId: Int,
+        text: String,
+    ): ToolOutcome
 
     suspend fun pressKey(key: DeviceKey): ToolOutcome
 

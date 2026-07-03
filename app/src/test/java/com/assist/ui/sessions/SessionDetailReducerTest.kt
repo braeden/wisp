@@ -14,58 +14,92 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SessionDetailReducerTest {
+    private val session =
+        SessionEntity(
+            id = 7,
+            title = "Open clock",
+            createdAt = 1,
+            updatedAt = 2,
+            modelDefault = "claude-opus-4-8",
+            status = SessionStatus.ACTIVE,
+            systemPromptVersion = 1,
+        )
 
-    private val session = SessionEntity(
-        id = 7,
-        title = "Open clock",
-        createdAt = 1,
-        updatedAt = 2,
-        modelDefault = "claude-opus-4-8",
-        status = SessionStatus.ACTIVE,
-        systemPromptVersion = 1,
+    private fun msg(
+        id: Long,
+        seq: Int,
+        role: TranscriptRole,
+        blocks: List<TranscriptBlock>,
+    ) = TranscriptMessage(
+        id = id,
+        seq = seq,
+        role = role,
+        kind = "message",
+        createdAt = seq.toLong(),
+        blocks = blocks,
     )
-
-    private fun msg(id: Long, seq: Int, role: TranscriptRole, blocks: List<TranscriptBlock>) =
-        TranscriptMessage(id = id, seq = seq, role = role, kind = "message", createdAt = seq.toLong(), blocks = blocks)
 
     @Test
     fun `pairs tool_use with its result and enriches from tool-call records`() {
-        val transcript = listOf(
-            msg(1, 0, TranscriptRole.USER, listOf(TranscriptBlock.Text("open the clock"))),
-            msg(
-                2, 1, TranscriptRole.ASSISTANT,
-                listOf(
-                    TranscriptBlock.Thinking("planning"),
-                    TranscriptBlock.ToolUse("tu_1", "open_app", """{"app":"clock"}"""),
+        val transcript =
+            listOf(
+                msg(1, 0, TranscriptRole.USER, listOf(TranscriptBlock.Text("open the clock"))),
+                msg(
+                    2,
+                    1,
+                    TranscriptRole.ASSISTANT,
+                    listOf(
+                        TranscriptBlock.Thinking("planning"),
+                        TranscriptBlock.ToolUse("tu_1", "open_app", """{"app":"clock"}"""),
+                    ),
                 ),
-            ),
-            msg(
-                3, 2, TranscriptRole.TOOL_RESULT,
-                listOf(
-                    TranscriptBlock.ToolResult("tu_1", "opened clock", isError = false),
-                    TranscriptBlock.Image(dropped = false),
+                msg(
+                    3,
+                    2,
+                    TranscriptRole.TOOL_RESULT,
+                    listOf(
+                        TranscriptBlock.ToolResult("tu_1", "opened clock", isError = false),
+                        TranscriptBlock.Image(dropped = false),
+                    ),
                 ),
-            ),
-        )
-        val toolCalls = listOf(
-            ToolCallEntity(
-                id = 1, sessionId = 7, messageId = null, name = "open_app",
-                argsJson = """{"app":"clock"}""", resultJson = "opened clock",
-                success = true, durationMs = 42, createdAt = 1,
-            ),
-        )
+            )
+        val toolCalls =
+            listOf(
+                ToolCallEntity(
+                    id = 1,
+                    sessionId = 7,
+                    messageId = null,
+                    name = "open_app",
+                    argsJson = """{"app":"clock"}""",
+                    resultJson = "opened clock",
+                    success = true,
+                    durationMs = 42,
+                    createdAt = 1,
+                ),
+            )
 
-        val state = SessionDetailReducer.reduce(
-            session = session,
-            transcript = transcript,
-            toolCalls = toolCalls,
-            usage = UsageSummary(
-                totalCostUsd = 0.02, totalInputTokens = 1000, totalOutputTokens = 500,
-                totalCacheReadTokens = 0, totalCacheWriteTokens = 0,
-                perModel = listOf(ModelUsage("claude-opus-4-8", 1000, 500, 0, 0, 0.02, 1)),
-            ),
-            context = ContextStatus(usedTokens = 1602, windowTokens = 1_000_000, costUsd = 0.02, screenshotCount = 1),
-        )
+        val state =
+            SessionDetailReducer.reduce(
+                session = session,
+                transcript = transcript,
+                toolCalls = toolCalls,
+                usage =
+                    UsageSummary(
+                        totalCostUsd = 0.02,
+                        totalInputTokens = 1000,
+                        totalOutputTokens = 500,
+                        totalCacheReadTokens = 0,
+                        totalCacheWriteTokens = 0,
+                        perModel = listOf(ModelUsage("claude-opus-4-8", 1000, 500, 0, 0, 0.02, 1)),
+                    ),
+                context =
+                    ContextStatus(
+                        usedTokens = 1602,
+                        windowTokens = 1_000_000,
+                        costUsd = 0.02,
+                        screenshotCount = 1,
+                    ),
+            )
 
         assertEquals("Open clock", state.title)
         assertEquals("claude-opus-4-8", state.model)
@@ -95,11 +129,29 @@ class SessionDetailReducerTest {
 
     @Test
     fun `failed tool result yields a not-ok chip`() {
-        val transcript = listOf(
-            msg(1, 0, TranscriptRole.ASSISTANT, listOf(TranscriptBlock.ToolUse("tu_1", "tap", """{"element_id":5}"""))),
-            msg(2, 1, TranscriptRole.TOOL_RESULT, listOf(TranscriptBlock.ToolResult("tu_1", "no such element", isError = true))),
-        )
-        val state = SessionDetailReducer.reduce(session, transcript, emptyList(), UsageSummary.EMPTY, null)
+        val transcript =
+            listOf(
+                msg(
+                    1,
+                    0,
+                    TranscriptRole.ASSISTANT,
+                    listOf(TranscriptBlock.ToolUse("tu_1", "tap", """{"element_id":5}""")),
+                ),
+                msg(
+                    2,
+                    1,
+                    TranscriptRole.TOOL_RESULT,
+                    listOf(TranscriptBlock.ToolResult("tu_1", "no such element", isError = true)),
+                ),
+            )
+        val state =
+            SessionDetailReducer.reduce(
+                session,
+                transcript,
+                emptyList(),
+                UsageSummary.EMPTY,
+                null,
+            )
         val chip = state.items.filterIsInstance<TranscriptItemUi.ToolChip>().single()
         assertEquals(false, chip.ok)
         assertEquals("no such element", chip.result)
@@ -107,7 +159,14 @@ class SessionDetailReducerTest {
 
     @Test
     fun `null session and empty usage degrade cleanly`() {
-        val state = SessionDetailReducer.reduce(null, emptyList(), emptyList(), UsageSummary.EMPTY, null)
+        val state =
+            SessionDetailReducer.reduce(
+                null,
+                emptyList(),
+                emptyList(),
+                UsageSummary.EMPTY,
+                null,
+            )
         assertEquals("Session", state.title)
         assertTrue(state.items.isEmpty())
         assertEquals(0, state.context!!.usedTokens)

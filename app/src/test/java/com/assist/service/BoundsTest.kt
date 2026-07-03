@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BoundsTest {
-
     @Test
     fun `center is midpoint`() {
         val b = Bounds(10, 20, 110, 220)

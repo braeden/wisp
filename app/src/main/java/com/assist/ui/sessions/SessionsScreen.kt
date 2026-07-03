@@ -1,5 +1,6 @@
 package com.assist.ui.sessions
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import android.widget.Toast
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -19,12 +19,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -59,9 +58,10 @@ fun SessionsScreen(
     // Scaffold; nesting a second one double-applied insets and added layout work
     // to every frame of a scroll.
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -72,7 +72,9 @@ fun SessionsScreen(
             // typed dialog remains the fallback when overlay/mic aren't granted.
             Button(
                 onClick = {
-                    if (Permissions.canDrawOverlays(context) && Permissions.hasMicrophone(context)) {
+                    if (Permissions.canDrawOverlays(context) &&
+                        Permissions.hasMicrophone(context)
+                    ) {
                         OverlayService.startListening(context)
                     } else {
                         showStartDialog = true
@@ -113,11 +115,12 @@ fun SessionsScreen(
                     AgentService.runIntent(context, intent),
                 )
                 if (Permissions.canDrawOverlays(context)) OverlayService.start(context)
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.start_session_started, intent.take(40)),
-                    Toast.LENGTH_SHORT,
-                ).show()
+                Toast
+                    .makeText(
+                        context,
+                        context.getString(R.string.start_session_started, intent.take(40)),
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 showStartDialog = false
             },
         )
@@ -160,7 +163,9 @@ private fun SessionCard(
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
         // Bottom padding is small on purpose: the TextButton row below already
         // carries ~12dp of internal touch-target padding.
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 2.dp)) {
+        Column(
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 2.dp),
+        ) {
             Text(
                 text = row.title,
                 style = MaterialTheme.typography.titleMedium,
@@ -172,8 +177,9 @@ private fun SessionCard(
             // a session, so the prefix carried no information.
             val statusPrefix = row.status.takeIf { it != "active" }?.let { "$it · " } ?: ""
             Text(
-                text = statusPrefix + "${modelLabel(row.model)} · ${row.messageCount} msgs · " +
-                    "${formatUsd(row.costUsd)} · ${formatRelativeTime(row.updatedAt)}",
+                text =
+                    statusPrefix + "${modelLabel(row.model)} · ${row.messageCount} msgs · " +
+                        "${formatUsd(row.costUsd)} · ${formatRelativeTime(row.updatedAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

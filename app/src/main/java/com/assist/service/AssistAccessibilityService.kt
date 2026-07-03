@@ -22,12 +22,12 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class AssistAccessibilityService : AccessibilityService() {
-
     @Inject lateinit var screenChangeSignals: ScreenChangeSignals
 
     @Inject lateinit var deviceController: DeviceController
 
-    @Inject @AppScope lateinit var scope: CoroutineScope
+    @Inject @AppScope
+    lateinit var scope: CoroutineScope
 
     private var debugReceiver: BroadcastReceiver? = null
 
@@ -71,12 +71,16 @@ class AssistAccessibilityService : AccessibilityService() {
 
     private fun registerDebugReceiver() {
         if (debugReceiver != null) return
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action != ACTION_DEBUG_DUMP) return
-                scope.launch { handleDebug(intent) }
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+                    if (intent?.action != ACTION_DEBUG_DUMP) return
+                    scope.launch { handleDebug(intent) }
+                }
             }
-        }
         ContextCompat.registerReceiver(
             this,
             receiver,
@@ -87,19 +91,31 @@ class AssistAccessibilityService : AccessibilityService() {
     }
 
     private suspend fun handleDebug(intent: Intent) {
-        intent.getStringExtra("open")?.let { Log.i(TAG, "debug open: ${deviceController.openApp(it)}") }
+        intent
+            .getStringExtra(
+                "open",
+            )?.let { Log.i(TAG, "debug open: ${deviceController.openApp(it)}") }
         if (intent.hasExtra("tap")) {
             Log.i(TAG, "debug tap: ${deviceController.tap(intent.getIntExtra("tap", -1))}")
         }
         intent.getStringExtra("swipe")?.let { dir ->
-            SwipeDirection.fromString(dir)?.let { Log.i(TAG, "debug swipe: ${deviceController.swipe(it)}") }
+            SwipeDirection
+                .fromString(
+                    dir,
+                )?.let { Log.i(TAG, "debug swipe: ${deviceController.swipe(it)}") }
         }
         intent.getStringExtra("key")?.let { k ->
-            DeviceKey.fromString(k)?.let { Log.i(TAG, "debug key: ${deviceController.pressKey(it)}") }
+            DeviceKey
+                .fromString(
+                    k,
+                )?.let { Log.i(TAG, "debug key: ${deviceController.pressKey(it)}") }
         }
         if (intent.getBooleanExtra("screenshot", false)) {
             val bmp = deviceController.takeScreenshot()
-            Log.i(TAG, "debug screenshot: non-null=${bmp != null} size=${bmp?.width}x${bmp?.height}")
+            Log.i(
+                TAG,
+                "debug screenshot: non-null=${bmp != null} size=${bmp?.width}x${bmp?.height}",
+            )
         }
         val state = deviceController.getScreenState()
         Log.i(TAG, "==== SCREEN DUMP ====\n${state.toOutline()}")

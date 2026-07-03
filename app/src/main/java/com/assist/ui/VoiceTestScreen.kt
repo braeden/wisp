@@ -37,10 +37,11 @@ fun VoiceTestScreen(viewModel: VoiceTestViewModel = hiltViewModel()) {
 
     Scaffold { inner ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(inner)
+                    .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Voice test", style = MaterialTheme.typography.headlineMedium)
@@ -85,17 +86,18 @@ fun VoiceTestScreen(viewModel: VoiceTestViewModel = hiltViewModel()) {
                     // Push-to-talk: capture while held, endpoint on release.
                     OutlinedButton(
                         onClick = {},
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onPress = {
-                                        viewModel.listen()
-                                        tryAwaitRelease()
-                                        viewModel.stopListening()
-                                    },
-                                )
-                            },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            viewModel.listen()
+                                            tryAwaitRelease()
+                                            viewModel.stopListening()
+                                        },
+                                    )
+                                },
                     ) { Text("Hold to talk") }
 
                     if (state.heard.isNotBlank()) {

@@ -34,11 +34,17 @@ interface NodeView {
 
     // --- Actions (no-ops in fakes) -----------------------------------------
     fun performClick(): Boolean
+
     fun performLongClick(): Boolean
+
     fun performScrollForward(): Boolean
+
     fun performScrollBackward(): Boolean
+
     fun performSetText(text: String): Boolean
+
     fun performFocus(): Boolean
+
     fun performImeEnter(): Boolean
 
     /** Release the underlying native node. Safe to call once; idempotent. */

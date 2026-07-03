@@ -34,37 +34,51 @@ data class ScreenState(
      * token overhead — ~15–20 chars on every one of up to 150 lines per screen.
      * They remain available in [toJson] / [UiElement.bounds] for gesture geometry.
      */
-    fun toOutline(): String = buildString {
-        append("app=").append(appPackage.ifEmpty { "?" })
-        window?.let { append(" window=").append(it) }
-        append(" elements=").append(elements.size)
-        if (truncated) append(" (truncated)")
-        append('\n')
-        for (e in elements) {
-            append('#').append(e.id).append(' ').append(e.role)
-            e.text?.takeIf { it.isNotBlank() }?.let { append(" \"").append(it).append('"') }
-            e.contentDesc?.takeIf { it.isNotBlank() }?.let { append(" (").append(it).append(')') }
-            val flags = buildList {
-                if (e.clickable) add("click")
-                if (e.longClickable) add("longclick")
-                if (e.editable) add("edit")
-                if (e.scrollable) add("scroll")
-                if (e.checkable) add(if (e.checked) "checked" else "checkable")
-                if (e.focused) add("focused")
-                if (e.password) add("password")
-                if (!e.enabled) add("disabled")
-            }
-            if (flags.isNotEmpty()) flags.joinTo(this, separator = ",", prefix = " [", postfix = "]")
+    fun toOutline(): String =
+        buildString {
+            append("app=").append(appPackage.ifEmpty { "?" })
+            window?.let { append(" window=").append(it) }
+            append(" elements=").append(elements.size)
+            if (truncated) append(" (truncated)")
             append('\n')
+            for (e in elements) {
+                append('#').append(e.id).append(' ').append(e.role)
+                e.text?.takeIf { it.isNotBlank() }?.let { append(" \"").append(it).append('"') }
+                e.contentDesc?.takeIf { it.isNotBlank() }?.let {
+                    append(
+                        " (",
+                    ).append(it).append(')')
+                }
+                val flags =
+                    buildList {
+                        if (e.clickable) add("click")
+                        if (e.longClickable) add("longclick")
+                        if (e.editable) add("edit")
+                        if (e.scrollable) add("scroll")
+                        if (e.checkable) add(if (e.checked) "checked" else "checkable")
+                        if (e.focused) add("focused")
+                        if (e.password) add("password")
+                        if (!e.enabled) add("disabled")
+                    }
+                if (flags.isNotEmpty()) {
+                    flags.joinTo(
+                        this,
+                        separator = ",",
+                        prefix = " [",
+                        postfix = "]",
+                    )
+                }
+                append('\n')
+            }
         }
-    }
 
     companion object {
         val EMPTY = ScreenState(appPackage = "", elements = emptyList())
 
-        private val json = Json {
-            encodeDefaults = false
-            prettyPrint = false
-        }
+        private val json =
+            Json {
+                encodeDefaults = false
+                prettyPrint = false
+            }
     }
 }

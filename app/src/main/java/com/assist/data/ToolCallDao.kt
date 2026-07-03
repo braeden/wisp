@@ -6,7 +6,6 @@ import androidx.room.Query
 
 @Dao
 interface ToolCallDao {
-
     @Insert
     suspend fun insert(toolCall: ToolCallEntity): Long
 

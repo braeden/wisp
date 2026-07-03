@@ -27,7 +27,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object VoiceOverlayModule {
-
     @Provides
     @Singleton
     fun provideTypedReplySource(overlay: Provider<OverlayController>): TypedReplySource =

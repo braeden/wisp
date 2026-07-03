@@ -12,7 +12,6 @@ import android.util.Log
 class LoggingUserIo(
     private val autoAnswer: String = "yes",
 ) : UserIo {
-
     override suspend fun say(text: String) {
         Log.i(TAG, "SAY: $text")
     }

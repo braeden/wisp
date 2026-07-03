@@ -7,18 +7,29 @@ package com.assist.llm
  * [ToolUse] (assistant → app) and [ToolResult] (app → assistant).
  */
 sealed interface ContentBlock {
-
     /** Plain text. */
-    data class Text(val text: String) : ContentBlock
+    data class Text(
+        val text: String,
+    ) : ContentBlock
 
     /** An image, base64-encoded (e.g. a screenshot). [mediaType] like "image/png". */
-    data class Image(val base64: String, val mediaType: String = "image/png") : ContentBlock
+    data class Image(
+        val base64: String,
+        val mediaType: String = "image/png",
+    ) : ContentBlock
 
     /** Model's private reasoning; replayed verbatim on the same model. */
-    data class Thinking(val text: String, val signature: String? = null) : ContentBlock
+    data class Thinking(
+        val text: String,
+        val signature: String? = null,
+    ) : ContentBlock
 
     /** A tool the assistant wants executed. [inputJson] is the raw JSON arguments object. */
-    data class ToolUse(val id: String, val name: String, val inputJson: String) : ContentBlock
+    data class ToolUse(
+        val id: String,
+        val name: String,
+        val inputJson: String,
+    ) : ContentBlock
 
     /**
      * The result of executing a [ToolUse], sent back on the next user turn.

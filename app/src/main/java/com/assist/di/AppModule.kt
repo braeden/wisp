@@ -22,11 +22,11 @@ annotation class AppScope
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-
     @Provides
     @Singleton
-    fun provideSecretStore(@ApplicationContext context: Context): SecretStore =
-        EncryptedSecretStore(context)
+    fun provideSecretStore(
+        @ApplicationContext context: Context,
+    ): SecretStore = EncryptedSecretStore(context)
 
     @Provides
     @Singleton

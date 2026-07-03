@@ -12,7 +12,6 @@ package com.assist.memory
  * resolved.
  */
 object MemoryPaths {
-
     const val ROOT = "/memories"
 
     /** Directory under which task recipes live, relative to the root. */

@@ -5,28 +5,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScreenStateRenderingTest {
-
-    private val state = ScreenState(
-        appPackage = "com.example.app",
-        window = "MainActivity",
-        elements = listOf(
-            UiElement(
-                id = 0,
-                role = "Button",
-                text = "Send",
-                bounds = Bounds(10, 20, 110, 80),
-                clickable = true,
-            ),
-            UiElement(
-                id = 1,
-                role = "EditText",
-                contentDesc = "Message",
-                bounds = Bounds(0, 100, 400, 160),
-                editable = true,
-                focused = true,
-            ),
-        ),
-    )
+    private val state =
+        ScreenState(
+            appPackage = "com.example.app",
+            window = "MainActivity",
+            elements =
+                listOf(
+                    UiElement(
+                        id = 0,
+                        role = "Button",
+                        text = "Send",
+                        bounds = Bounds(10, 20, 110, 80),
+                        clickable = true,
+                    ),
+                    UiElement(
+                        id = 1,
+                        role = "EditText",
+                        contentDesc = "Message",
+                        bounds = Bounds(0, 100, 400, 160),
+                        editable = true,
+                        focused = true,
+                    ),
+                ),
+        )
 
     @Test
     fun `outline includes ids roles and flags but omits bounds`() {

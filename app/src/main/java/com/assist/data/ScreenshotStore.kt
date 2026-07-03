@@ -11,10 +11,15 @@ import java.util.UUID
  * [baseDir] is the app-private files dir in production (see
  * [com.assist.di.DataModule]); tests pass a temp directory.
  */
-class ScreenshotStore(private val baseDir: File) {
-
+class ScreenshotStore(
+    private val baseDir: File,
+) {
     /** Persist [bytes] for [sessionId] and return the absolute file path. */
-    fun write(sessionId: Long, bytes: ByteArray, extension: String = "png"): String {
+    fun write(
+        sessionId: Long,
+        bytes: ByteArray,
+        extension: String = "png",
+    ): String {
         val dir = File(baseDir, "$SUBDIR/session_$sessionId")
         dir.mkdirs()
         val file = File(dir, "${UUID.randomUUID()}.$extension")

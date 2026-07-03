@@ -9,15 +9,16 @@ import javax.inject.Inject
 
 /** Exposes the persisted Fast-mode toggle and model selection for the settings UI. */
 @HiltViewModel
-class SettingsViewModel @Inject constructor(
-    private val settings: SettingsStore,
-) : ViewModel() {
+class SettingsViewModel
+    @Inject
+    constructor(
+        private val settings: SettingsStore,
+    ) : ViewModel() {
+        val fastMode: StateFlow<Boolean> = settings.fastMode
 
-    val fastMode: StateFlow<Boolean> = settings.fastMode
+        fun setFastMode(enabled: Boolean) = settings.setFastModeEnabled(enabled)
 
-    fun setFastMode(enabled: Boolean) = settings.setFastModeEnabled(enabled)
+        val agentModel: StateFlow<AgentModel> = settings.agentModel
 
-    val agentModel: StateFlow<AgentModel> = settings.agentModel
-
-    fun setAgentModel(model: AgentModel) = settings.setAgentModel(model)
-}
+        fun setAgentModel(model: AgentModel) = settings.setAgentModel(model)
+    }

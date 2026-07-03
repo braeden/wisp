@@ -21,45 +21,47 @@ import javax.inject.Inject
  * [SessionDetailReducer]. The `sessionId` nav arg is read from [SavedStateHandle].
  */
 @HiltViewModel
-class SessionDetailViewModel @Inject constructor(
-    private val repository: SessionRepository,
-    private val contextTracker: ContextTracker,
-    savedStateHandle: SavedStateHandle,
-) : ViewModel() {
+class SessionDetailViewModel
+    @Inject
+    constructor(
+        private val repository: SessionRepository,
+        private val contextTracker: ContextTracker,
+        savedStateHandle: SavedStateHandle,
+    ) : ViewModel() {
+        val sessionId: Long =
+            savedStateHandle.get<Long>(ARG_SESSION_ID)
+                ?: savedStateHandle.get<String>(ARG_SESSION_ID)?.toLongOrNull()
+                ?: -1L
 
-    val sessionId: Long = savedStateHandle.get<Long>(ARG_SESSION_ID)
-        ?: savedStateHandle.get<String>(ARG_SESSION_ID)?.toLongOrNull()
-        ?: -1L
+        private val _state = MutableStateFlow(SessionDetailUiState())
+        val state: StateFlow<SessionDetailUiState> = _state.asStateFlow()
 
-    private val _state = MutableStateFlow(SessionDetailUiState())
-    val state: StateFlow<SessionDetailUiState> = _state.asStateFlow()
+        init {
+            viewModelScope.launch {
+                // Any message change re-decodes the transcript; the session row flow
+                // supplies the header.
+                repository.observeMessages(sessionId).collectLatest { refresh() }
+            }
+        }
 
-    init {
-        viewModelScope.launch {
-            // Any message change re-decodes the transcript; the session row flow
-            // supplies the header.
-            repository.observeMessages(sessionId).collectLatest { refresh() }
+        /** Switch this session's model; a running loop picks it up on its next step. */
+        fun setModel(model: AgentModel) {
+            viewModelScope.launch {
+                repository.setSessionModel(sessionId, model.modelId)
+                refresh()
+            }
+        }
+
+        private suspend fun refresh() {
+            val session = repository.getSession(sessionId)
+            val transcript = repository.getTranscript(sessionId)
+            val toolCalls = repository.listToolCalls(sessionId)
+            val usage = repository.aggregateUsage(sessionId)
+            val ctx = runCatching { contextTracker.contextStatus(sessionId) }.getOrNull()
+            _state.value = SessionDetailReducer.reduce(session, transcript, toolCalls, usage, ctx)
+        }
+
+        companion object {
+            const val ARG_SESSION_ID = "sessionId"
         }
     }
-
-    /** Switch this session's model; a running loop picks it up on its next step. */
-    fun setModel(model: AgentModel) {
-        viewModelScope.launch {
-            repository.setSessionModel(sessionId, model.modelId)
-            refresh()
-        }
-    }
-
-    private suspend fun refresh() {
-        val session = repository.getSession(sessionId)
-        val transcript = repository.getTranscript(sessionId)
-        val toolCalls = repository.listToolCalls(sessionId)
-        val usage = repository.aggregateUsage(sessionId)
-        val ctx = runCatching { contextTracker.contextStatus(sessionId) }.getOrNull()
-        _state.value = SessionDetailReducer.reduce(session, transcript, toolCalls, usage, ctx)
-    }
-
-    companion object {
-        const val ARG_SESSION_ID = "sessionId"
-    }
-}

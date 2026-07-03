@@ -12,13 +12,15 @@ import android.util.Log
  * `USAGE_ASSISTANT` so the system routes and mixes us as an assistant (and honors
  * headset routing). minSdk 30 → the [AudioFocusRequest] API is always available.
  */
-internal class AudioFocus(context: Context) {
-
+internal class AudioFocus(
+    context: Context,
+) {
     private val manager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     private val attributes: AudioAttributes =
-        AudioAttributes.Builder()
+        AudioAttributes
+            .Builder()
             .setUsage(AudioAttributes.USAGE_ASSISTANT)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
@@ -31,10 +33,12 @@ internal class AudioFocus(context: Context) {
     @Synchronized
     fun request() {
         if (request != null) return
-        val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-            .setAudioAttributes(attributes)
-            .setWillPauseWhenDucked(false)
-            .build()
+        val req =
+            AudioFocusRequest
+                .Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(attributes)
+                .setWillPauseWhenDucked(false)
+                .build()
         val result = manager.requestAudioFocus(req)
         request = req
         if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {

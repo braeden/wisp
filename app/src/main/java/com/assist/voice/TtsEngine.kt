@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
  * this interface. See `.claude/voice-architecture.md`.
  */
 interface TtsEngine {
-
     /** Whether the engine finished initializing and can speak. */
     suspend fun isAvailable(): Boolean
 
@@ -18,7 +17,10 @@ interface TtsEngine {
      * Speak [text], suspending until playback completes. Cancelling the coroutine
      * stops playback immediately (barge-in) — the same effect as [stop].
      */
-    suspend fun say(text: String, opts: SpeakOptions = SpeakOptions())
+    suspend fun say(
+        text: String,
+        opts: SpeakOptions = SpeakOptions(),
+    )
 
     /** Halt current + queued speech immediately (barge-in / `QUEUE_FLUSH`+stop). */
     fun stop()
@@ -30,13 +32,30 @@ interface TtsEngine {
 }
 
 sealed interface TtsEvent {
-    data class Started(val utteranceId: String) : TtsEvent
+    data class Started(
+        val utteranceId: String,
+    ) : TtsEvent
 
     /** `onRangeStart` → drives caption highlighting in the overlay (phase-07). */
-    data class Range(val utteranceId: String, val start: Int, val end: Int) : TtsEvent
-    data class Done(val utteranceId: String) : TtsEvent
-    data class Stopped(val utteranceId: String, val interrupted: Boolean) : TtsEvent
-    data class Failed(val utteranceId: String, val cause: Throwable? = null) : TtsEvent
+    data class Range(
+        val utteranceId: String,
+        val start: Int,
+        val end: Int,
+    ) : TtsEvent
+
+    data class Done(
+        val utteranceId: String,
+    ) : TtsEvent
+
+    data class Stopped(
+        val utteranceId: String,
+        val interrupted: Boolean,
+    ) : TtsEvent
+
+    data class Failed(
+        val utteranceId: String,
+        val cause: Throwable? = null,
+    ) : TtsEvent
 }
 
 data class SpeakOptions(
@@ -56,4 +75,5 @@ data class VoiceInfo(
 )
 
 enum class Quality { LOW, NORMAL, HIGH, VERY_HIGH }
+
 enum class Latency { VERY_LOW, LOW, NORMAL, HIGH }

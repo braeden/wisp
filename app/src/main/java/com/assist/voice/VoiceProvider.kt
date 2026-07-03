@@ -10,7 +10,9 @@ package com.assist.voice
 interface VoiceProvider {
     val id: String
     val kind: VoiceProviderKind
+
     fun stt(): SttEngine
+
     fun tts(): TtsEngine
 
     /** `null` → no bundled wake word; fall back to a standalone detector (phase-09). */

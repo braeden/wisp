@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MemoryPathsTest {
-
     @Test
     fun `normalizes valid paths`() {
         assertEquals("/memories", MemoryPaths.normalize("/memories"))

@@ -30,18 +30,21 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
-
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AssistDatabase =
-        Room.databaseBuilder(context, AssistDatabase::class.java, AssistDatabase.NAME)
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+    ): AssistDatabase =
+        Room
+            .databaseBuilder(context, AssistDatabase::class.java, AssistDatabase.NAME)
             .addMigrations(AssistDatabase.MIGRATION_1_2)
             .build()
 
     @Provides
     @Singleton
-    fun provideScreenshotStore(@ApplicationContext context: Context): ScreenshotStore =
-        ScreenshotStore(context.filesDir)
+    fun provideScreenshotStore(
+        @ApplicationContext context: Context,
+    ): ScreenshotStore = ScreenshotStore(context.filesDir)
 
     @Provides
     @Singleton
@@ -64,8 +67,9 @@ object DataModule {
 
     @Provides
     @Singleton
-    fun provideSettingsStore(@ApplicationContext context: Context): SettingsStore =
-        PrefsSettingsStore(context)
+    fun provideSettingsStore(
+        @ApplicationContext context: Context,
+    ): SettingsStore = PrefsSettingsStore(context)
 
     @Provides
     fun provideTaskRecipeDao(db: AssistDatabase): TaskRecipeDao = db.taskRecipeDao()

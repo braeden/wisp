@@ -5,14 +5,14 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AppResolverTest {
-
     private val resolver = AppResolver()
-    private val apps = listOf(
-        InstalledApp("com.android.settings", "Settings"),
-        InstalledApp("com.google.android.gm", "Gmail"),
-        InstalledApp("com.google.android.apps.maps", "Maps"),
-        InstalledApp("com.spotify.music", "Spotify"),
-    )
+    private val apps =
+        listOf(
+            InstalledApp("com.android.settings", "Settings"),
+            InstalledApp("com.google.android.gm", "Gmail"),
+            InstalledApp("com.google.android.apps.maps", "Maps"),
+            InstalledApp("com.spotify.music", "Spotify"),
+        )
 
     @Test
     fun `exact package id wins`() {

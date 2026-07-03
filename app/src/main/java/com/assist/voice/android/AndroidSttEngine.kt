@@ -35,8 +35,9 @@ import kotlin.coroutines.resumeWithException
  * calls are marshaled to the **main thread** (the framework contract); callbacks
  * arrive there too. `SpeechRecognizer` types never escape this class.
  */
-class AndroidSttEngine(context: Context) : SttEngine {
-
+class AndroidSttEngine(
+    context: Context,
+) : SttEngine {
     private val appContext = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
 
@@ -44,9 +45,10 @@ class AndroidSttEngine(context: Context) : SttEngine {
     @Volatile
     private var active: SpeechRecognizer? = null
 
-    override suspend fun isAvailable(): Boolean = withContext(Dispatchers.Main.immediate) {
-        SpeechRecognizer.isRecognitionAvailable(appContext)
-    }
+    override suspend fun isAvailable(): Boolean =
+        withContext(Dispatchers.Main.immediate) {
+            SpeechRecognizer.isRecognitionAvailable(appContext)
+        }
 
     override suspend fun transcribeOnce(config: SttConfig): SttResult {
         if (!hasMicPermission()) throw SttException(SttError.PERMISSION)
@@ -55,22 +57,23 @@ class AndroidSttEngine(context: Context) : SttEngine {
                 val recognizer = createRecognizer(config)
                 val settled = AtomicBoolean(false)
 
-                val listener = object : BaseListener() {
-                    override fun onResults(results: Bundle) {
-                        if (!settled.compareAndSet(false, true)) return
-                        val result = results.toSttResult()
-                        destroy(recognizer)
-                        if (cont.isActive) cont.resume(result)
-                    }
+                val listener =
+                    object : BaseListener() {
+                        override fun onResults(results: Bundle) {
+                            if (!settled.compareAndSet(false, true)) return
+                            val result = results.toSttResult()
+                            destroy(recognizer)
+                            if (cont.isActive) cont.resume(result)
+                        }
 
-                    override fun onError(error: Int) {
-                        if (!settled.compareAndSet(false, true)) return
-                        destroy(recognizer)
-                        if (cont.isActive) {
-                            cont.resumeWithException(SttException(SttErrorMapper.map(error)))
+                        override fun onError(error: Int) {
+                            if (!settled.compareAndSet(false, true)) return
+                            destroy(recognizer)
+                            if (cont.isActive) {
+                                cont.resumeWithException(SttException(SttErrorMapper.map(error)))
+                            }
                         }
                     }
-                }
 
                 startListening(recognizer, listener, config)
                 cont.invokeOnCancellation {
@@ -80,52 +83,54 @@ class AndroidSttEngine(context: Context) : SttEngine {
         }
     }
 
-    override fun stream(config: SttConfig): Flow<SttEvent> = callbackFlow {
-        if (!hasMicPermission()) {
-            trySend(SttEvent.Failed(SttError.PERMISSION))
-            close()
-            return@callbackFlow
-        }
-
-        var recognizer: SpeechRecognizer? = null
-        val listener = object : BaseListener() {
-            override fun onBeginningOfSpeech() {
-                trySend(SttEvent.BeginningOfSpeech)
-            }
-
-            override fun onRmsChanged(rmsdB: Float) {
-                trySend(SttEvent.Rms(rmsdB))
-            }
-
-            override fun onPartialResults(partialResults: Bundle) {
-                partialResults.firstResult()?.let { trySend(SttEvent.Partial(it)) }
-            }
-
-            override fun onEndOfSpeech() {
-                trySend(SttEvent.EndOfSpeech)
-            }
-
-            override fun onResults(results: Bundle) {
-                trySend(SttEvent.Final(results.toSttResult()))
+    override fun stream(config: SttConfig): Flow<SttEvent> =
+        callbackFlow {
+            if (!hasMicPermission()) {
+                trySend(SttEvent.Failed(SttError.PERMISSION))
                 close()
+                return@callbackFlow
             }
 
-            override fun onError(error: Int) {
-                trySend(SttEvent.Failed(SttErrorMapper.map(error)))
-                close()
+            var recognizer: SpeechRecognizer? = null
+            val listener =
+                object : BaseListener() {
+                    override fun onBeginningOfSpeech() {
+                        trySend(SttEvent.BeginningOfSpeech)
+                    }
+
+                    override fun onRmsChanged(rmsdB: Float) {
+                        trySend(SttEvent.Rms(rmsdB))
+                    }
+
+                    override fun onPartialResults(partialResults: Bundle) {
+                        partialResults.firstResult()?.let { trySend(SttEvent.Partial(it)) }
+                    }
+
+                    override fun onEndOfSpeech() {
+                        trySend(SttEvent.EndOfSpeech)
+                    }
+
+                    override fun onResults(results: Bundle) {
+                        trySend(SttEvent.Final(results.toSttResult()))
+                        close()
+                    }
+
+                    override fun onError(error: Int) {
+                        trySend(SttEvent.Failed(SttErrorMapper.map(error)))
+                        close()
+                    }
+                }
+
+            main.post {
+                val r = createRecognizer(config)
+                recognizer = r
+                startListening(r, listener, config)
+            }
+
+            awaitClose {
+                main.post { recognizer?.let { destroy(it) } }
             }
         }
-
-        main.post {
-            val r = createRecognizer(config)
-            recognizer = r
-            startListening(r, listener, config)
-        }
-
-        awaitClose {
-            main.post { recognizer?.let { destroy(it) } }
-        }
-    }
 
     override fun cancel() {
         val current = active
@@ -135,15 +140,17 @@ class AndroidSttEngine(context: Context) : SttEngine {
     // --- Recognizer plumbing (main thread) ---------------------------------
 
     private fun createRecognizer(config: SttConfig): SpeechRecognizer {
-        val onDevice = config.preferOnDevice &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            runCatching { SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext) }
-                .getOrDefault(false)
-        val recognizer = if (onDevice) {
-            SpeechRecognizer.createOnDeviceSpeechRecognizer(appContext)
-        } else {
-            SpeechRecognizer.createSpeechRecognizer(appContext)
-        }
+        val onDevice =
+            config.preferOnDevice &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                runCatching { SpeechRecognizer.isOnDeviceRecognitionAvailable(appContext) }
+                    .getOrDefault(false)
+        val recognizer =
+            if (onDevice) {
+                SpeechRecognizer.createOnDeviceSpeechRecognizer(appContext)
+            } else {
+                SpeechRecognizer.createSpeechRecognizer(appContext)
+            }
         active = recognizer
         return recognizer
     }
@@ -194,18 +201,31 @@ class AndroidSttEngine(context: Context) : SttEngine {
 /** No-op [RecognitionListener] base so impls override only what they need. */
 private abstract class BaseListener : RecognitionListener {
     override fun onReadyForSpeech(params: Bundle?) {}
+
     override fun onBeginningOfSpeech() {}
+
     override fun onRmsChanged(rmsdB: Float) {}
+
     override fun onBufferReceived(buffer: ByteArray?) {}
+
     override fun onEndOfSpeech() {}
+
     override fun onPartialResults(partialResults: Bundle) {}
-    override fun onEvent(eventType: Int, params: Bundle?) {}
+
+    override fun onEvent(
+        eventType: Int,
+        params: Bundle?,
+    ) {}
+
     override fun onResults(results: Bundle) {}
+
     override fun onError(error: Int) {}
 }
 
 private fun Bundle.firstResult(): String? =
-    getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }
+    getStringArrayList(
+        SpeechRecognizer.RESULTS_RECOGNITION,
+    )?.firstOrNull()?.takeIf { it.isNotBlank() }
 
 private fun Bundle.toSttResult(): SttResult {
     val hypotheses = getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()

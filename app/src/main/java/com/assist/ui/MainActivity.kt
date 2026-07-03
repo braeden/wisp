@@ -47,9 +47,15 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Top-level bottom-nav destinations. Sessions is the landing surface. */
-private sealed class Tab(val route: String, val label: String, val icon: ImageVector) {
+private sealed class Tab(
+    val route: String,
+    val label: String,
+    val icon: ImageVector,
+) {
     data object Sessions : Tab("sessions", "Sessions", Icons.Filled.List)
+
     data object Memory : Tab("recipes", "Memory", Icons.Filled.Star)
+
     data object Settings : Tab("settings", "Settings", Icons.Filled.Settings)
 }
 
@@ -74,8 +80,9 @@ private fun AssistApp() {
             val route = entry?.destination?.route
             NavigationBar {
                 tabs.forEach { tab ->
-                    val selected = route == tab.route ||
-                        (tab == Tab.Sessions && route == SESSION_DETAIL_ROUTE)
+                    val selected =
+                        route == tab.route ||
+                            (tab == Tab.Sessions && route == SESSION_DETAIL_ROUTE)
                     NavigationBarItem(
                         selected = selected,
                         onClick = {

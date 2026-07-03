@@ -7,19 +7,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScreenSerializerTest {
-
     private val serializer = ScreenSerializer(clock = { 123L })
 
     @Test
     fun `maps node fields into UiElement`() {
-        val button = FakeNodeView(
-            className = "android.widget.Button",
-            text = "Send",
-            resourceId = "com.example.app:id/send_btn",
-            bounds = Bounds(10, 20, 110, 80),
-            isClickable = true,
-            isFocused = true,
-        )
+        val button =
+            FakeNodeView(
+                className = "android.widget.Button",
+                text = "Send",
+                resourceId = "com.example.app:id/send_btn",
+                bounds = Bounds(10, 20, 110, 80),
+                isClickable = true,
+                isFocused = true,
+            )
         val root = FakeNodeView(className = "android.widget.FrameLayout", children = listOf(button))
 
         val frame = serializer.serialize(root)
@@ -39,13 +39,20 @@ class ScreenSerializerTest {
     fun `skips non-meaningful containers but keeps their meaningful children`() {
         val label = FakeNodeView(className = "android.widget.TextView", text = "Hello")
         // Container: no text, not actionable -> not serialized, but traversed.
-        val container = FakeNodeView(className = "android.widget.LinearLayout", children = listOf(label))
-        val root = FakeNodeView(className = "android.widget.FrameLayout", children = listOf(container))
+        val container =
+            FakeNodeView(className = "android.widget.LinearLayout", children = listOf(label))
+        val root =
+            FakeNodeView(className = "android.widget.FrameLayout", children = listOf(container))
 
         val frame = serializer.serialize(root)
 
         assertEquals(1, frame.state.elements.size)
-        assertEquals("Hello", frame.state.elements.single().text)
+        assertEquals(
+            "Hello",
+            frame.state.elements
+                .single()
+                .text,
+        )
     }
 
     @Test
@@ -91,7 +98,11 @@ class ScreenSerializerTest {
         val root = FakeNodeView(children = listOf(node))
         val s = ScreenSerializer(maxTextLength = 200, clock = { 0L })
 
-        val el = s.serialize(root).state.elements.single()
+        val el =
+            s
+                .serialize(root)
+                .state.elements
+                .single()
 
         assertEquals(201, el.text!!.length) // 200 chars + ellipsis
         assertTrue(el.text!!.endsWith("…"))
@@ -101,7 +112,8 @@ class ScreenSerializerTest {
     fun `recycles skipped nodes but retains mapped nodes until frame recycle`() {
         val kept = FakeNodeView(text = "keep", isClickable = true)
         val skipped = FakeNodeView(className = "android.widget.LinearLayout") // no text/action
-        val root = FakeNodeView(className = "android.widget.FrameLayout", children = listOf(kept, skipped))
+        val root =
+            FakeNodeView(className = "android.widget.FrameLayout", children = listOf(kept, skipped))
 
         val frame = serializer.serialize(root)
 

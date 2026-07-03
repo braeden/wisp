@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
-
     @Insert
     suspend fun insert(note: NoteEntity): Long
 

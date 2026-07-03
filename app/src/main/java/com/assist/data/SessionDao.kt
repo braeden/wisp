@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SessionDao {
-
     @Insert
     suspend fun insert(session: SessionEntity): Long
 
@@ -37,15 +36,30 @@ interface SessionDao {
     suspend fun deleteById(id: Long)
 
     @Query("UPDATE sessions SET title = :title, updatedAt = :now WHERE id = :id")
-    suspend fun rename(id: Long, title: String, now: Long)
+    suspend fun rename(
+        id: Long,
+        title: String,
+        now: Long,
+    )
 
     @Query("UPDATE sessions SET status = :status, updatedAt = :now WHERE id = :id")
-    suspend fun setStatus(id: Long, status: String, now: Long)
+    suspend fun setStatus(
+        id: Long,
+        status: String,
+        now: Long,
+    )
 
     /** Switch the session's current model (mid-session swaps are supported). */
     @Query("UPDATE sessions SET modelDefault = :model, updatedAt = :now WHERE id = :id")
-    suspend fun setModel(id: Long, model: String, now: Long)
+    suspend fun setModel(
+        id: Long,
+        model: String,
+        now: Long,
+    )
 
     @Query("UPDATE sessions SET updatedAt = :now WHERE id = :id")
-    suspend fun touch(id: Long, now: Long)
+    suspend fun touch(
+        id: Long,
+        now: Long,
+    )
 }

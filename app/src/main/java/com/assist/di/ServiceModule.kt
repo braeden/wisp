@@ -21,7 +21,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object ServiceModule {
-
     @Provides
     @Singleton
     fun provideScreenSerializer(): ScreenSerializer = ScreenSerializer()

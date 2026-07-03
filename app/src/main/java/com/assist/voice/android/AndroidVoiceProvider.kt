@@ -17,7 +17,10 @@ class AndroidVoiceProvider(
 ) : VoiceProvider {
     override val id: String = "android"
     override val kind: VoiceProviderKind = VoiceProviderKind.PIPELINE
+
     override fun stt(): SttEngine = stt
+
     override fun tts(): TtsEngine = tts
+
     override fun wakeWord(): WakeWordDetector? = null
 }

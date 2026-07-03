@@ -14,16 +14,18 @@ import javax.inject.Singleton
  * slow collector — the buffer drops the oldest under backpressure.
  */
 @Singleton
-class AgentEventBus @Inject constructor() {
+class AgentEventBus
+    @Inject
+    constructor() {
+        private val _events =
+            MutableSharedFlow<AgentEvent>(
+                replay = 0,
+                extraBufferCapacity = 128,
+                onBufferOverflow = BufferOverflow.DROP_OLDEST,
+            )
 
-    private val _events = MutableSharedFlow<AgentEvent>(
-        replay = 0,
-        extraBufferCapacity = 128,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
+        val events: SharedFlow<AgentEvent> = _events.asSharedFlow()
 
-    val events: SharedFlow<AgentEvent> = _events.asSharedFlow()
-
-    /** Publish [event]. Never blocks; returns false only if the buffer is saturated. */
-    fun emit(event: AgentEvent): Boolean = _events.tryEmit(event)
-}
+        /** Publish [event]. Never blocks; returns false only if the buffer is saturated. */
+        fun emit(event: AgentEvent): Boolean = _events.tryEmit(event)
+    }

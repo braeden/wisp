@@ -8,7 +8,6 @@ package com.assist.llm
  * `com.assist.llm.anthropic`.
  */
 sealed interface ToolSpec {
-
     /** The tool's advertised name (the `name` the model calls). */
     val name: String
 

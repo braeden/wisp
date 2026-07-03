@@ -16,10 +16,11 @@ import com.assist.prompt.SystemPromptProvider as PromptSystemPromptProvider
  * byte-stable across sessions maximizes prompt-cache reuse, which is exactly why
  * phase-10's [PromptContext] omits it.
  */
-class Phase10SystemPromptProvider @Inject constructor(
-    private val delegate: PromptSystemPromptProvider,
-) : SystemPromptProvider {
-
-    override fun system(context: SystemPromptContext): List<SystemBlock> =
-        delegate.system(PromptContext(deviceModel = context.deviceInfo))
-}
+class Phase10SystemPromptProvider
+    @Inject
+    constructor(
+        private val delegate: PromptSystemPromptProvider,
+    ) : SystemPromptProvider {
+        override fun system(context: SystemPromptContext): List<SystemBlock> =
+            delegate.system(PromptContext(deviceModel = context.deviceInfo))
+    }

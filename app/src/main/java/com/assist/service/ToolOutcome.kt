@@ -10,6 +10,7 @@ data class ToolOutcome(
 ) {
     companion object {
         fun ok(message: String = "ok"): ToolOutcome = ToolOutcome(true, message)
+
         fun fail(message: String): ToolOutcome = ToolOutcome(false, message)
     }
 }

@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GesturesTest {
-
     private val screen = Bounds(0, 0, 1000, 2000) // cx=500, cy=1000
 
     @Test

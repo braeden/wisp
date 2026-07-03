@@ -23,7 +23,6 @@ class FakeNodeView(
     override val isPassword: Boolean = false,
     private val children: List<FakeNodeView> = emptyList(),
 ) : NodeView {
-
     var recycled: Boolean = false
         private set
 
@@ -32,11 +31,17 @@ class FakeNodeView(
     override fun child(index: Int): NodeView? = children.getOrNull(index)
 
     override fun performClick(): Boolean = true
+
     override fun performLongClick(): Boolean = true
+
     override fun performScrollForward(): Boolean = true
+
     override fun performScrollBackward(): Boolean = true
+
     override fun performSetText(text: String): Boolean = true
+
     override fun performFocus(): Boolean = true
+
     override fun performImeEnter(): Boolean = true
 
     override fun recycle() {
@@ -44,8 +49,9 @@ class FakeNodeView(
     }
 
     /** All nodes in this subtree (pre-order), for recycle assertions. */
-    fun subtree(): List<FakeNodeView> = buildList {
-        add(this@FakeNodeView)
-        children.forEach { addAll(it.subtree()) }
-    }
+    fun subtree(): List<FakeNodeView> =
+        buildList {
+            add(this@FakeNodeView)
+            children.forEach { addAll(it.subtree()) }
+        }
 }

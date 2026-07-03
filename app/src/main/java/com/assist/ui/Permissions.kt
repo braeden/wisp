@@ -1,13 +1,13 @@
 package com.assist.ui
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.text.TextUtils
 import androidx.core.content.ContextCompat
-import android.Manifest
-import android.content.pm.PackageManager
 
 /**
  * Runtime/special-permission checks and deep-links for onboarding. Owned by
@@ -17,7 +17,6 @@ import android.content.pm.PackageManager
  * component id by string so this helper compiles independently.
  */
 object Permissions {
-
     /** Fully-qualified component id of the (phase-03) accessibility service. */
     const val ACCESSIBILITY_SERVICE_ID = "com.assist/com.assist.service.AssistAccessibilityService"
 
@@ -33,10 +32,11 @@ object Permissions {
 
     /** True if our accessibility service is listed in the enabled-services setting. */
     fun isAccessibilityEnabled(context: Context): Boolean {
-        val enabled = Settings.Secure.getString(
-            context.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        ) ?: return false
+        val enabled =
+            Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+            ) ?: return false
         val splitter = TextUtils.SimpleStringSplitter(':')
         splitter.setString(enabled)
         while (splitter.hasNext()) {

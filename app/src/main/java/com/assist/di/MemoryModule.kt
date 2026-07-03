@@ -18,9 +18,9 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object MemoryModule {
-
     @Provides
     @Singleton
-    fun provideMemoryStore(@ApplicationContext context: Context): MemoryStore =
-        MemoryStore(rootDir = File(context.filesDir, "memories"))
+    fun provideMemoryStore(
+        @ApplicationContext context: Context,
+    ): MemoryStore = MemoryStore(rootDir = File(context.filesDir, "memories"))
 }

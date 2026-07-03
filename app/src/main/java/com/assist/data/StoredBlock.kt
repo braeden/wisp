@@ -13,23 +13,34 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 sealed interface StoredBlock {
-
     @Serializable
     @SerialName("text")
-    data class Text(val text: String) : StoredBlock
+    data class Text(
+        val text: String,
+    ) : StoredBlock
 
     /** Reference to a screenshot/media file (see [MediaEntity]). */
     @Serializable
     @SerialName("image_ref")
-    data class ImageRef(val mediaId: Long, val mediaType: String = "image/png") : StoredBlock
+    data class ImageRef(
+        val mediaId: Long,
+        val mediaType: String = "image/png",
+    ) : StoredBlock
 
     @Serializable
     @SerialName("thinking")
-    data class Thinking(val text: String, val signature: String? = null) : StoredBlock
+    data class Thinking(
+        val text: String,
+        val signature: String? = null,
+    ) : StoredBlock
 
     @Serializable
     @SerialName("tool_use")
-    data class ToolUse(val id: String, val name: String, val inputJson: String) : StoredBlock
+    data class ToolUse(
+        val id: String,
+        val name: String,
+        val inputJson: String,
+    ) : StoredBlock
 
     @Serializable
     @SerialName("tool_result")

@@ -9,11 +9,11 @@ import kotlinx.serialization.json.Json
  * [ContextTracker] (read) so both agree on the wire shape.
  */
 internal object MessageContentCodec {
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     private val serializer = ListSerializer(StoredBlock.serializer())
 

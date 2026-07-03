@@ -53,16 +53,20 @@ class BargeInDetector(
      * TTS reports [TtsEvent.Started] and disarms on stop/done. [onRedirect] is
      * invoked with the captured instruction (blank if capture failed).
      */
-    fun start(scope: CoroutineScope, onRedirect: suspend (String) -> Unit) {
+    fun start(
+        scope: CoroutineScope,
+        onRedirect: suspend (String) -> Unit,
+    ) {
         stop()
-        job = scope.launch(Dispatchers.Default) {
-            tts.events().collect { event ->
-                when (event) {
-                    is TtsEvent.Started -> monitorWhileSpeaking(onRedirect)
-                    else -> Unit
+        job =
+            scope.launch(Dispatchers.Default) {
+                tts.events().collect { event ->
+                    when (event) {
+                        is TtsEvent.Started -> monitorWhileSpeaking(onRedirect)
+                        else -> Unit
+                    }
                 }
             }
-        }
     }
 
     fun stop() {
@@ -102,24 +106,28 @@ class BargeInDetector(
         Log.i(TAG, "barge-in detected — interrupting")
         tts.stop()
         agentLoop.interrupt()
-        val redirect = runCatching {
-            arbiter.withMic(MicOwner.BARGE_IN) { stt.transcribeOnce() }.text
-        }.getOrDefault("")
+        val redirect =
+            runCatching {
+                arbiter.withMic(MicOwner.BARGE_IN) { stt.transcribeOnce() }.text
+            }.getOrDefault("")
         onRedirect(redirect)
     }
 
     @SuppressLint("MissingPermission") // guarded by hasMicPermission()
-    private fun openRecord(): AudioRecord? = runCatching {
-        val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL, ENCODING)
-            .coerceAtLeast(FRAME_SAMPLES * 2)
-        AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            SAMPLE_RATE,
-            CHANNEL,
-            ENCODING,
-            minBuf,
-        ).takeIf { it.state == AudioRecord.STATE_INITIALIZED }
-    }.getOrNull()
+    private fun openRecord(): AudioRecord? =
+        runCatching {
+            val minBuf =
+                AudioRecord
+                    .getMinBufferSize(SAMPLE_RATE, CHANNEL, ENCODING)
+                    .coerceAtLeast(FRAME_SAMPLES * 2)
+            AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                SAMPLE_RATE,
+                CHANNEL,
+                ENCODING,
+                minBuf,
+            ).takeIf { it.state == AudioRecord.STATE_INITIALIZED }
+        }.getOrNull()
 
     private fun hasMicPermission(): Boolean =
         ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) ==

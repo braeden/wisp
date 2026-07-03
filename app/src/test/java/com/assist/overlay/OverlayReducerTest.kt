@@ -9,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OverlayReducerTest {
-
     private val reducer = OverlayReducer()
 
     private fun reduce(
@@ -20,12 +19,13 @@ class OverlayReducerTest {
 
     @Test
     fun `started sets session, intent, and thinking phase and clears transcript`() {
-        val dirty = OverlayUiState.INITIAL.copy(
-            assistantText = "old",
-            toolChips = listOf(ToolChip("t", "tap", "{}", ToolStatus.SUCCESS)),
-            finished = true,
-            expanded = true,
-        )
+        val dirty =
+            OverlayUiState.INITIAL.copy(
+                assistantText = "old",
+                toolChips = listOf(ToolChip("t", "tap", "{}", ToolStatus.SUCCESS)),
+                finished = true,
+                expanded = true,
+            )
         val state = reducer.reduce(dirty, OverlayInput.Event(AgentEvent.Started(7L, "do a thing")))
 
         assertEquals(AgentPhase.THINKING, state.phase)
@@ -40,13 +40,15 @@ class OverlayReducerTest {
 
     @Test
     fun `assistant text deltas accumulate in order`() {
-        val state = reduce(
-            events = arrayOf(
-                AgentEvent.AssistantText("Hel"),
-                AgentEvent.AssistantText("lo, "),
-                AgentEvent.AssistantText("world"),
-            ),
-        )
+        val state =
+            reduce(
+                events =
+                    arrayOf(
+                        AgentEvent.AssistantText("Hel"),
+                        AgentEvent.AssistantText("lo, "),
+                        AgentEvent.AssistantText("world"),
+                    ),
+            )
         assertEquals("Hello, world", state.assistantText)
         assertEquals(AgentPhase.SPEAKING, state.phase)
     }
@@ -63,14 +65,26 @@ class OverlayReducerTest {
 
     @Test
     fun `tool chips preserve emission order and update by id`() {
-        val state = reduce(
-            events = arrayOf(
-                AgentEvent.ToolCallStarted("a", "open_app", """{"name":"Clock"}"""),
-                AgentEvent.ToolCallStarted("b", "tap", """{"element_id":3}"""),
-                AgentEvent.ToolCallFinished("a", "open_app", success = true, message = "opened"),
-                AgentEvent.ToolCallFinished("b", "tap", success = false, message = "no such element"),
-            ),
-        )
+        val state =
+            reduce(
+                events =
+                    arrayOf(
+                        AgentEvent.ToolCallStarted("a", "open_app", """{"name":"Clock"}"""),
+                        AgentEvent.ToolCallStarted("b", "tap", """{"element_id":3}"""),
+                        AgentEvent.ToolCallFinished(
+                            "a",
+                            "open_app",
+                            success = true,
+                            message = "opened",
+                        ),
+                        AgentEvent.ToolCallFinished(
+                            "b",
+                            "tap",
+                            success = false,
+                            message = "no such element",
+                        ),
+                    ),
+            )
         assertEquals(listOf("a", "b"), state.toolChips.map { it.id })
         assertEquals(ToolStatus.SUCCESS, state.toolChips[0].status)
         assertEquals("opened", state.toolChips[0].result)
@@ -81,20 +95,25 @@ class OverlayReducerTest {
 
     @Test
     fun `awaiting confirmation shows prompt and finished tool clears it`() {
-        val awaiting = reduce(
-            events = arrayOf(
-                AgentEvent.ToolCallStarted("c", "tap", "{}"),
-                AgentEvent.AwaitingConfirmation("Confirm send?", "SEND"),
-            ),
-        )
+        val awaiting =
+            reduce(
+                events =
+                    arrayOf(
+                        AgentEvent.ToolCallStarted("c", "tap", "{}"),
+                        AgentEvent.AwaitingConfirmation("Confirm send?", "SEND"),
+                    ),
+            )
         assertEquals(AgentPhase.LISTENING, awaiting.phase)
         assertEquals("Confirm send?", awaiting.confirmation?.question)
         assertEquals("SEND", awaiting.confirmation?.category)
 
-        val resolved = reducer.reduce(
-            awaiting,
-            OverlayInput.Event(AgentEvent.ToolCallFinished("c", "tap", success = true, message = "sent")),
-        )
+        val resolved =
+            reducer.reduce(
+                awaiting,
+                OverlayInput.Event(
+                    AgentEvent.ToolCallFinished("c", "tap", success = true, message = "sent"),
+                ),
+            )
         assertNull(resolved.confirmation)
     }
 
@@ -115,7 +134,13 @@ class OverlayReducerTest {
 
     @Test
     fun `hud input projects context status with clamped fraction`() {
-        val status = ContextStatus(usedTokens = 250_000, windowTokens = 1_000_000, costUsd = 0.1234, screenshotCount = 2)
+        val status =
+            ContextStatus(
+                usedTokens = 250_000,
+                windowTokens = 1_000_000,
+                costUsd = 0.1234,
+                screenshotCount = 2,
+            )
         val state = reducer.reduce(OverlayUiState.INITIAL, OverlayInput.Hud(status))
         assertEquals(250_000, state.hud?.usedTokens)
         assertEquals(0.25f, state.hud?.contextFraction!!, 0.0001f)
@@ -124,44 +149,55 @@ class OverlayReducerTest {
 
     @Test
     fun `hud fraction is clamped to one when used exceeds window`() {
-        val over = HudState(usedTokens = 300, windowTokens = 100, costUsd = 0.0, screenshotCount = 0)
+        val over =
+            HudState(usedTokens = 300, windowTokens = 100, costUsd = 0.0, screenshotCount = 0)
         assertEquals(1f, over.contextFraction, 0.0f)
-        val zeroWindow = HudState(usedTokens = 10, windowTokens = 0, costUsd = 0.0, screenshotCount = 0)
+        val zeroWindow =
+            HudState(usedTokens = 10, windowTokens = 0, costUsd = 0.0, screenshotCount = 0)
         assertEquals(0f, zeroWindow.contextFraction, 0.0f)
     }
 
     @Test
     fun `expand input flips only the expanded flag`() {
-        val state = reducer.reduce(
-            OverlayUiState.INITIAL.copy(assistantText = "keep"),
-            OverlayInput.Expand(true),
-        )
+        val state =
+            reducer.reduce(
+                OverlayUiState.INITIAL.copy(assistantText = "keep"),
+                OverlayInput.Expand(true),
+            )
         assertTrue(state.expanded)
         assertEquals("keep", state.assistantText)
     }
 
     @Test
     fun `session change replaces the run view with the backfilled tail`() {
-        val dirty = OverlayUiState.INITIAL.copy(
-            phase = AgentPhase.ACTING,
-            sessionId = 1L,
-            intent = "old task",
-            assistantText = "old text",
-            toolChips = listOf(ToolChip("t", "tap", "{}", ToolStatus.SUCCESS)),
-            finished = true,
-            expanded = true,
-            hud = HudState(usedTokens = 5, windowTokens = 10, costUsd = 0.1, screenshotCount = 1),
-        )
+        val dirty =
+            OverlayUiState.INITIAL.copy(
+                phase = AgentPhase.ACTING,
+                sessionId = 1L,
+                intent = "old task",
+                assistantText = "old text",
+                toolChips = listOf(ToolChip("t", "tap", "{}", ToolStatus.SUCCESS)),
+                finished = true,
+                expanded = true,
+                hud =
+                    HudState(
+                        usedTokens = 5,
+                        windowTokens = 10,
+                        costUsd = 0.1,
+                        screenshotCount = 1,
+                    ),
+            )
         val backfilledChip = ToolChip("db-9", "open_app", "{}", ToolStatus.SUCCESS, result = "ok")
-        val state = reducer.reduce(
-            dirty,
-            OverlayInput.SessionChanged(
-                sessionId = 2L,
-                title = "timer session",
-                assistantText = "Timer is running.",
-                toolChips = listOf(backfilledChip),
-            ),
-        )
+        val state =
+            reducer.reduce(
+                dirty,
+                OverlayInput.SessionChanged(
+                    sessionId = 2L,
+                    title = "timer session",
+                    assistantText = "Timer is running.",
+                    toolChips = listOf(backfilledChip),
+                ),
+            )
 
         assertEquals(AgentPhase.IDLE, state.phase)
         assertEquals(2L, state.sessionId)

@@ -25,7 +25,6 @@ class VoiceUserIo(
     private val bus: AgentEventBus,
     private val typedReplies: TypedReplySource? = null,
 ) : UserIo {
-
     override suspend fun say(text: String) {
         if (text.isBlank()) return
         bus.emit(AgentEvent.Speaking(text))

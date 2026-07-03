@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
  * touching callers. See `.claude/voice-architecture.md`.
  */
 interface SttEngine {
-
     /** Whether recognition is usable right now (permission-independent capability). */
     suspend fun isAvailable(): Boolean
 
@@ -33,11 +32,26 @@ interface SttEngine {
 /** Streaming recognition events (mirrors the `RecognitionListener` callbacks). */
 sealed interface SttEvent {
     data object BeginningOfSpeech : SttEvent
-    data class Rms(val db: Float) : SttEvent
-    data class Partial(val text: String, val confidence: Float? = null) : SttEvent
+
+    data class Rms(
+        val db: Float,
+    ) : SttEvent
+
+    data class Partial(
+        val text: String,
+        val confidence: Float? = null,
+    ) : SttEvent
+
     data object EndOfSpeech : SttEvent
-    data class Final(val result: SttResult) : SttEvent
-    data class Failed(val error: SttError, val cause: Throwable? = null) : SttEvent
+
+    data class Final(
+        val result: SttResult,
+    ) : SttEvent
+
+    data class Failed(
+        val error: SttError,
+        val cause: Throwable? = null,
+    ) : SttEvent
 }
 
 data class SttResult(

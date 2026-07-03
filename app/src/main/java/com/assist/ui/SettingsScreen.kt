@@ -22,6 +22,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,12 +35,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.assist.R
 import com.assist.overlay.OverlayService
 import com.assist.ui.sessions.FastModeCard
@@ -66,9 +66,10 @@ fun SettingsScreen(
     var resumeTick by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) resumeTick++
-        }
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) resumeTick++
+            }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
@@ -79,23 +80,27 @@ fun SettingsScreen(
     val accessibilityOk = Permissions.isAccessibilityEnabled(context)
     val overlayOk = Permissions.canDrawOverlays(context)
     val micOk = Permissions.hasMicrophone(context)
-    val notifOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-        Permissions.hasNotifications(context)
+    val notifOk =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            Permissions.hasNotifications(context)
 
-    val micLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { resumeTick++ }
-    val notifLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { resumeTick++ }
+    val micLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { resumeTick++ }
+    val notifLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { resumeTick++ }
 
     Scaffold { inner ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(inner)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
@@ -307,15 +312,19 @@ private fun ApiKeyCard(
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = stringResource(
-                    if (hasApiKey) R.string.api_key_present else R.string.api_key_absent,
-                ),
+                text =
+                    stringResource(
+                        if (hasApiKey) R.string.api_key_present else R.string.api_key_absent,
+                    ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
                 value = field,
-                onValueChange = { field = it; justSaved = false },
+                onValueChange = {
+                    field = it
+                    justSaved = false
+                },
                 label = { Text(stringResource(R.string.api_key_hint)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),

@@ -19,16 +19,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AnthropicRequestFactoryTest {
-
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     private fun request(
         model: String = "claude-opus-4-8",
         speed: Speed = Speed.STANDARD,
         tools: List<ToolSpec> = emptyList(),
-        messages: List<LlmMessage> = listOf(
-            LlmMessage(Role.USER, listOf(ContentBlock.Text("hi"))),
-        ),
+        messages: List<LlmMessage> =
+            listOf(
+                LlmMessage(Role.USER, listOf(ContentBlock.Text("hi"))),
+            ),
     ) = LlmRequest(
         model = model,
         system = listOf(SystemBlock("sys", cacheable = true)),
@@ -45,14 +49,24 @@ class AnthropicRequestFactoryTest {
     fun `fast mode sends speed and beta on opus-4-8`() {
         val req = request(model = "claude-opus-4-8", speed = Speed.FAST)
         assertEquals("fast", body(req)["speed"]?.jsonPrimitive?.content)
-        assertTrue(AnthropicRequestFactory.betaHeaders(req).contains(AnthropicRequestFactory.BETA_FAST_MODE))
+        assertTrue(
+            AnthropicRequestFactory
+                .betaHeaders(
+                    req,
+                ).contains(AnthropicRequestFactory.BETA_FAST_MODE),
+        )
     }
 
     @Test
     fun `fast mode is dropped on non-opus models`() {
         val req = request(model = "claude-sonnet-5", speed = Speed.FAST)
         assertNull(body(req)["speed"])
-        assertFalse(AnthropicRequestFactory.betaHeaders(req).contains(AnthropicRequestFactory.BETA_FAST_MODE))
+        assertFalse(
+            AnthropicRequestFactory
+                .betaHeaders(
+                    req,
+                ).contains(AnthropicRequestFactory.BETA_FAST_MODE),
+        )
     }
 
     @Test
@@ -62,16 +76,18 @@ class AnthropicRequestFactoryTest {
 
     @Test
     fun `client tool maps to a schema tool and honors strict`() {
-        val req = request(
-            tools = listOf(
-                ToolSpec.ClientTool(
-                    name = "tap",
-                    description = "tap it",
-                    inputSchemaJson = """{"type":"object","properties":{},"required":[]}""",
-                    strict = true,
-                ),
-            ),
-        )
+        val req =
+            request(
+                tools =
+                    listOf(
+                        ToolSpec.ClientTool(
+                            name = "tap",
+                            description = "tap it",
+                            inputSchemaJson = """{"type":"object","properties":{},"required":[]}""",
+                            strict = true,
+                        ),
+                    ),
+            )
         val tool = (body(req)["tools"] as JsonArray).single().jsonObject
         assertEquals("tap", tool["name"]?.jsonPrimitive?.content)
         assertTrue(tool.containsKey("input_schema"))
@@ -80,9 +96,10 @@ class AnthropicRequestFactoryTest {
 
     @Test
     fun `provider tool maps to type and name passthrough`() {
-        val req = request(
-            tools = listOf(ToolSpec.ProviderTool(type = "memory_20250818", name = "memory")),
-        )
+        val req =
+            request(
+                tools = listOf(ToolSpec.ProviderTool(type = "memory_20250818", name = "memory")),
+            )
         val tool = (body(req)["tools"] as JsonArray).single().jsonObject
         assertEquals("memory_20250818", tool["type"]?.jsonPrimitive?.content)
         assertEquals("memory", tool["name"]?.jsonPrimitive?.content)
@@ -91,13 +108,21 @@ class AnthropicRequestFactoryTest {
 
     @Test
     fun `system role message maps to role system`() {
-        val req = request(
-            messages = listOf(
-                LlmMessage(Role.USER, listOf(ContentBlock.Text("hi"))),
-                LlmMessage(Role.SYSTEM, listOf(ContentBlock.Text("New input arrived: stop"))),
-            ),
-        )
-        val roles = (body(req)["messages"] as JsonArray).map { it.jsonObject["role"]?.jsonPrimitive?.content }
+        val req =
+            request(
+                messages =
+                    listOf(
+                        LlmMessage(Role.USER, listOf(ContentBlock.Text("hi"))),
+                        LlmMessage(
+                            Role.SYSTEM,
+                            listOf(ContentBlock.Text("New input arrived: stop")),
+                        ),
+                    ),
+            )
+        val roles =
+            (body(req)["messages"] as JsonArray).map {
+                it.jsonObject["role"]?.jsonPrimitive?.content
+            }
         assertEquals(listOf("user", "system"), roles)
     }
 }

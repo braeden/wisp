@@ -9,27 +9,33 @@ import androidx.security.crypto.MasterKey
  * [SecretStore] backed by [EncryptedSharedPreferences] (AES-256, key material in
  * the Android Keystore). Values are encrypted at rest.
  */
-class EncryptedSecretStore(context: Context) : SecretStore {
-
-    private val prefs: SharedPreferences = run {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
-    }
+class EncryptedSecretStore(
+    context: Context,
+) : SecretStore {
+    private val prefs: SharedPreferences =
+        run {
+            val masterKey =
+                MasterKey
+                    .Builder(context)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        }
 
     override fun getApiKey(): String? = prefs.getString(KEY_API, null)?.takeIf { it.isNotBlank() }
 
     override fun setApiKey(value: String) {
-        prefs.edit().apply {
-            if (value.isBlank()) remove(KEY_API) else putString(KEY_API, value.trim())
-        }.apply()
+        prefs
+            .edit()
+            .apply {
+                if (value.isBlank()) remove(KEY_API) else putString(KEY_API, value.trim())
+            }.apply()
     }
 
     private companion object {

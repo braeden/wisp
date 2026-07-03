@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EnergyVadTest {
-
     private fun frame(amplitude: Short) = ShortArray(160) { amplitude }
 
     @Test

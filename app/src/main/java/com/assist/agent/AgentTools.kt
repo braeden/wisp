@@ -15,7 +15,6 @@ import com.assist.llm.ToolSpec
  * executes `memory` `tool_use` blocks against `MemoryStore`.
  */
 object AgentTools {
-
     // Perception & control
     const val GET_SCREEN_STATE = "get_screen_state"
     const val TAKE_SCREENSHOT = "take_screenshot"
@@ -46,165 +45,176 @@ object AgentTools {
     const val MEMORY_TYPE = "memory_20250818"
 
     /** The full catalog advertised to the model, in a stable order (cache-friendly). */
-    fun catalog(): List<ToolSpec> = listOf(
-        // --- Perception & control ---
-        client(
-            GET_SCREEN_STATE,
-            "Return the current foreground screen as a compact accessibility outline " +
-                "(one line per element with a stable #id). Your default way to perceive.",
-            objectSchema(),
-        ),
-        client(
-            TAKE_SCREENSHOT,
-            "Capture a PNG screenshot of the current screen. Use only when the a11y " +
-                "outline is insufficient (canvas/WebView/visual judgement).",
-            objectSchema(),
-        ),
-        client(
-            TAP,
-            "Tap the element with the given id from the latest screen outline.",
-            objectSchema(
-                required = listOf("element_id"),
-                props = """"element_id":{"type":"integer","description":"#id from the outline"}""",
+    fun catalog(): List<ToolSpec> =
+        listOf(
+            // --- Perception & control ---
+            client(
+                GET_SCREEN_STATE,
+                "Return the current foreground screen as a compact accessibility outline " +
+                    "(one line per element with a stable #id). Your default way to perceive.",
+                objectSchema(),
             ),
-            strict = true,
-        ),
-        client(
-            TAP_XY,
-            "Tap absolute screen coordinates. Prefer tap(element_id) when an element fits.",
-            objectSchema(
-                required = listOf("x", "y"),
-                props = """"x":{"type":"integer"},"y":{"type":"integer"}""",
+            client(
+                TAKE_SCREENSHOT,
+                "Capture a PNG screenshot of the current screen. Use only when the a11y " +
+                    "outline is insufficient (canvas/WebView/visual judgement).",
+                objectSchema(),
             ),
-            strict = true,
-        ),
-        client(
-            LONG_PRESS,
-            "Long-press the element with the given id.",
-            objectSchema(
-                required = listOf("element_id"),
-                props = """"element_id":{"type":"integer"}""",
+            client(
+                TAP,
+                "Tap the element with the given id from the latest screen outline.",
+                objectSchema(
+                    required = listOf("element_id"),
+                    props = """"element_id":{"type":"integer","description":"#id from the outline"}""",
+                ),
+                strict = true,
             ),
-            strict = true,
-        ),
-        client(
-            LONG_PRESS_XY,
-            "Long-press absolute screen coordinates.",
-            objectSchema(
-                required = listOf("x", "y"),
-                props = """"x":{"type":"integer"},"y":{"type":"integer"}""",
+            client(
+                TAP_XY,
+                "Tap absolute screen coordinates. Prefer tap(element_id) when an element fits.",
+                objectSchema(
+                    required = listOf("x", "y"),
+                    props = """"x":{"type":"integer"},"y":{"type":"integer"}""",
+                ),
+                strict = true,
             ),
-            strict = true,
-        ),
-        client(
-            SWIPE,
-            "Swipe the screen in a direction (the finger travels that way; content " +
-                "moves opposite). Optional distance fraction of the screen (0..1).",
-            objectSchema(
-                required = listOf("direction"),
-                props = """"direction":{"type":"string","enum":["up","down","left","right"]},""" +
-                    """"distance":{"type":"number","minimum":0,"maximum":1}""",
+            client(
+                LONG_PRESS,
+                "Long-press the element with the given id.",
+                objectSchema(
+                    required = listOf("element_id"),
+                    props = """"element_id":{"type":"integer"}""",
+                ),
+                strict = true,
             ),
-        ),
-        client(
-            SWIPE_XY,
-            "Swipe from (x1,y1) to (x2,y2) over an optional duration in ms.",
-            objectSchema(
-                required = listOf("x1", "y1", "x2", "y2"),
-                props = """"x1":{"type":"integer"},"y1":{"type":"integer"},""" +
-                    """"x2":{"type":"integer"},"y2":{"type":"integer"},""" +
-                    """"duration_ms":{"type":"integer","minimum":0}""",
+            client(
+                LONG_PRESS_XY,
+                "Long-press absolute screen coordinates.",
+                objectSchema(
+                    required = listOf("x", "y"),
+                    props = """"x":{"type":"integer"},"y":{"type":"integer"}""",
+                ),
+                strict = true,
             ),
-        ),
-        client(
-            SCROLL,
-            "Scroll a scrollable element by id, or the screen in a direction. Provide " +
-                "either element_id or direction.",
-            objectSchema(
-                props = """"element_id":{"type":"integer"},""" +
-                    """"direction":{"type":"string","enum":["up","down","left","right"]},""" +
-                    """"forward":{"type":"boolean","description":"for element_id scroll"}""",
+            client(
+                SWIPE,
+                "Swipe the screen in a direction (the finger travels that way; content " +
+                    "moves opposite). Optional distance fraction of the screen (0..1).",
+                objectSchema(
+                    required = listOf("direction"),
+                    props =
+                        """"direction":{"type":"string","enum":["up","down","left","right"]},""" +
+                            """"distance":{"type":"number","minimum":0,"maximum":1}""",
+                ),
             ),
-        ),
-        client(
-            SET_TEXT,
-            "Focus an editable element by id and set its text (replaces existing text).",
-            objectSchema(
-                required = listOf("element_id", "text"),
-                props = """"element_id":{"type":"integer"},"text":{"type":"string"}""",
+            client(
+                SWIPE_XY,
+                "Swipe from (x1,y1) to (x2,y2) over an optional duration in ms.",
+                objectSchema(
+                    required = listOf("x1", "y1", "x2", "y2"),
+                    props =
+                        """"x1":{"type":"integer"},"y1":{"type":"integer"},""" +
+                            """"x2":{"type":"integer"},"y2":{"type":"integer"},""" +
+                            """"duration_ms":{"type":"integer","minimum":0}""",
+                ),
             ),
-            strict = true,
-        ),
-        client(
-            PRESS_KEY,
-            "Press a global navigation key.",
-            objectSchema(
-                required = listOf("key"),
-                props = """"key":{"type":"string","enum":["back","home","recents",""" +
-                    """"notifications","quick_settings","enter"]}""",
+            client(
+                SCROLL,
+                "Scroll a scrollable element by id, or the screen in a direction. Provide " +
+                    "either element_id or direction.",
+                objectSchema(
+                    props =
+                        """"element_id":{"type":"integer"},""" +
+                            """"direction":{"type":"string","enum":["up","down","left","right"]},""" +
+                            """"forward":{"type":"boolean","description":"for element_id scroll"}""",
+                ),
             ),
-            strict = true,
-        ),
-        client(
-            OPEN_APP,
-            "Launch an app by package name or human label (e.g. \"Clock\" or " +
-                "\"com.google.android.deskclock\").",
-            objectSchema(
-                required = listOf("app"),
-                props = """"app":{"type":"string"}""",
+            client(
+                SET_TEXT,
+                "Focus an editable element by id and set its text (replaces existing text).",
+                objectSchema(
+                    required = listOf("element_id", "text"),
+                    props = """"element_id":{"type":"integer"},"text":{"type":"string"}""",
+                ),
+                strict = true,
             ),
-            strict = true,
-        ),
-        client(
-            WAIT,
-            "Wait for the UI to settle / animations / loading. Milliseconds (capped).",
-            objectSchema(
-                required = listOf("ms"),
-                props = """"ms":{"type":"integer","minimum":0}""",
+            client(
+                PRESS_KEY,
+                "Press a global navigation key.",
+                objectSchema(
+                    required = listOf("key"),
+                    props =
+                        """"key":{"type":"string","enum":["back","home","recents",""" +
+                            """"notifications","quick_settings","enter"]}""",
+                ),
+                strict = true,
             ),
-        ),
-        // --- User interaction ---
-        client(
-            SAY,
-            "Speak/display a short message to the user. One-way; does not block.",
-            objectSchema(required = listOf("text"), props = """"text":{"type":"string"}"""),
-        ),
-        client(
-            ASK,
-            "Ask the user a question and wait for their reply. Use when you need a " +
-                "decision or missing information.",
-            objectSchema(required = listOf("question"), props = """"question":{"type":"string"}"""),
-        ),
-        client(
-            FINISH,
-            "End the task. `summary` is a one-line status for the log/UI and is NOT " +
-                "spoken aloud — if you want the user to hear the outcome, call `say` " +
-                "first (a brief spoken result), then `finish`. Call finish when the " +
-                "task is complete or cannot proceed. Do not call more tools after.",
-            objectSchema(required = listOf("summary"), props = """"summary":{"type":"string"}"""),
-        ),
-        // --- Context / economy ---
-        client(
-            DROP_OLD_SCREENSHOTS,
-            "Drop old screenshots/tool results from context to save tokens, optionally " +
-                "keeping the most recent few.",
-            objectSchema(
-                props = """"keep_last":{"type":"integer","minimum":0}""",
+            client(
+                OPEN_APP,
+                "Launch an app by package name or human label (e.g. \"Clock\" or " +
+                    "\"com.google.android.deskclock\").",
+                objectSchema(
+                    required = listOf("app"),
+                    props = """"app":{"type":"string"}""",
+                ),
+                strict = true,
             ),
-        ),
-        client(
-            COMPACT_CONVERSATION,
-            "Summarize and compact earlier conversation to free up context.",
-            objectSchema(),
-        ),
-        client(
-            NOTE,
-            "Write a durable scratch note into the session (survives compaction).",
-            objectSchema(required = listOf("text"), props = """"text":{"type":"string"}"""),
-        ),
-        // --- Learned task memory (provider tool) ---
-        ToolSpec.ProviderTool(type = MEMORY_TYPE, name = MEMORY),
-    )
+            client(
+                WAIT,
+                "Wait for the UI to settle / animations / loading. Milliseconds (capped).",
+                objectSchema(
+                    required = listOf("ms"),
+                    props = """"ms":{"type":"integer","minimum":0}""",
+                ),
+            ),
+            // --- User interaction ---
+            client(
+                SAY,
+                "Speak/display a short message to the user. One-way; does not block.",
+                objectSchema(required = listOf("text"), props = """"text":{"type":"string"}"""),
+            ),
+            client(
+                ASK,
+                "Ask the user a question and wait for their reply. Use when you need a " +
+                    "decision or missing information.",
+                objectSchema(
+                    required = listOf("question"),
+                    props = """"question":{"type":"string"}""",
+                ),
+            ),
+            client(
+                FINISH,
+                "End the task. `summary` is a one-line status for the log/UI and is NOT " +
+                    "spoken aloud — if you want the user to hear the outcome, call `say` " +
+                    "first (a brief spoken result), then `finish`. Call finish when the " +
+                    "task is complete or cannot proceed. Do not call more tools after.",
+                objectSchema(
+                    required = listOf("summary"),
+                    props = """"summary":{"type":"string"}""",
+                ),
+            ),
+            // --- Context / economy ---
+            client(
+                DROP_OLD_SCREENSHOTS,
+                "Drop old screenshots/tool results from context to save tokens, optionally " +
+                    "keeping the most recent few.",
+                objectSchema(
+                    props = """"keep_last":{"type":"integer","minimum":0}""",
+                ),
+            ),
+            client(
+                COMPACT_CONVERSATION,
+                "Summarize and compact earlier conversation to free up context.",
+                objectSchema(),
+            ),
+            client(
+                NOTE,
+                "Write a durable scratch note into the session (survives compaction).",
+                objectSchema(required = listOf("text"), props = """"text":{"type":"string"}"""),
+            ),
+            // --- Learned task memory (provider tool) ---
+            ToolSpec.ProviderTool(type = MEMORY_TYPE, name = MEMORY),
+        )
 
     private fun client(
         name: String,

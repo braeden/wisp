@@ -9,9 +9,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SystemTurnPlacementTest {
-
-    private fun msg(role: Role, text: String = "x") =
-        LlmMessage(role = role, content = listOf(ContentBlock.Text(text)))
+    private fun msg(
+        role: Role,
+        text: String = "x",
+    ) = LlmMessage(role = role, content = listOf(ContentBlock.Text(text)))
 
     @Test
     fun `cannot append to an empty conversation (never first)`() {
@@ -25,11 +26,20 @@ class SystemTurnPlacementTest {
 
     @Test
     fun `can append after a user turn carrying tool_result`() {
-        val toolResult = LlmMessage(
-            role = Role.USER,
-            content = listOf(ContentBlock.ToolResult(toolUseId = "t1", content = listOf(ContentBlock.Text("ok")))),
+        val toolResult =
+            LlmMessage(
+                role = Role.USER,
+                content =
+                    listOf(
+                        ContentBlock.ToolResult(
+                            toolUseId = "t1",
+                            content = listOf(ContentBlock.Text("ok")),
+                        ),
+                    ),
+            )
+        assertTrue(
+            SystemTurnPlacement.canAppend(listOf(msg(Role.USER), msg(Role.ASSISTANT), toolResult)),
         )
-        assertTrue(SystemTurnPlacement.canAppend(listOf(msg(Role.USER), msg(Role.ASSISTANT), toolResult)))
     }
 
     @Test

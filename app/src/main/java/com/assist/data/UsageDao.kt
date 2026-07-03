@@ -6,7 +6,6 @@ import androidx.room.Query
 
 @Dao
 interface UsageDao {
-
     @Insert
     suspend fun insert(usage: UsageEntity): Long
 

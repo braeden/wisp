@@ -31,11 +31,12 @@ class ModelRouter(
     private val complexModel: String = DEFAULT_MODEL,
 ) {
     /** Resolve the model id for [difficulty]. */
-    fun modelFor(difficulty: StepDifficulty): String = when (difficulty) {
-        StepDifficulty.SIMPLE -> simpleModel
-        StepDifficulty.STANDARD -> standardModel
-        StepDifficulty.COMPLEX -> complexModel
-    }
+    fun modelFor(difficulty: StepDifficulty): String =
+        when (difficulty) {
+            StepDifficulty.SIMPLE -> simpleModel
+            StepDifficulty.STANDARD -> standardModel
+            StepDifficulty.COMPLEX -> complexModel
+        }
 
     companion object {
         const val DEFAULT_MODEL = "claude-opus-4-8"

@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TaskRecipeDao {
-
     @Insert
     suspend fun insert(recipe: TaskRecipeEntity): Long
 
@@ -33,6 +32,11 @@ interface TaskRecipeDao {
     @Query("DELETE FROM task_recipes WHERE memoryPath = :path")
     suspend fun deleteByPath(path: String)
 
-    @Query("UPDATE task_recipes SET useCount = useCount + 1, lastUsedAt = :now WHERE memoryPath = :path")
-    suspend fun recordUse(path: String, now: Long)
+    @Query(
+        "UPDATE task_recipes SET useCount = useCount + 1, lastUsedAt = :now WHERE memoryPath = :path",
+    )
+    suspend fun recordUse(
+        path: String,
+        now: Long,
+    )
 }

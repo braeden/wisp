@@ -9,9 +9,17 @@ import com.assist.data.ContextStatus
  * single fold means the overlay reads exactly one [OverlayUiState] snapshot.
  */
 sealed interface OverlayInput {
-    @JvmInline value class Event(val event: AgentEvent) : OverlayInput
-    @JvmInline value class Hud(val status: ContextStatus) : OverlayInput
-    @JvmInline value class Expand(val expanded: Boolean) : OverlayInput
+    @JvmInline value class Event(
+        val event: AgentEvent,
+    ) : OverlayInput
+
+    @JvmInline value class Hud(
+        val status: ContextStatus,
+    ) : OverlayInput
+
+    @JvmInline value class Expand(
+        val expanded: Boolean,
+    ) : OverlayInput
 
     /**
      * New/switched session: replace the run view with the selected session's
@@ -33,98 +41,117 @@ sealed interface OverlayInput {
  * [OverlayController.throttleLatest]); this reducer just accumulates.
  */
 class OverlayReducer {
+    fun reduce(
+        state: OverlayUiState,
+        input: OverlayInput,
+    ): OverlayUiState =
+        when (input) {
+            is OverlayInput.Event -> reduceEvent(state, input.event)
+            is OverlayInput.Hud -> state.copy(hud = HudState.from(input.status))
+            is OverlayInput.Expand -> state.copy(expanded = input.expanded)
+            // Replace the previous run's view with the switched-to session's own
+            // recent context (title + last assistant text + recent tool chips), so
+            // the panel visibly shows where that conversation left off.
+            is OverlayInput.SessionChanged ->
+                OverlayUiState(
+                    phase = AgentPhase.IDLE,
+                    expanded = state.expanded,
+                    sessionId = input.sessionId,
+                    intent = input.title,
+                    assistantText = input.assistantText,
+                    toolChips = input.toolChips,
+                    hud = state.hud,
+                )
+        }
 
-    fun reduce(state: OverlayUiState, input: OverlayInput): OverlayUiState = when (input) {
-        is OverlayInput.Event -> reduceEvent(state, input.event)
-        is OverlayInput.Hud -> state.copy(hud = HudState.from(input.status))
-        is OverlayInput.Expand -> state.copy(expanded = input.expanded)
-        // Replace the previous run's view with the switched-to session's own
-        // recent context (title + last assistant text + recent tool chips), so
-        // the panel visibly shows where that conversation left off.
-        is OverlayInput.SessionChanged -> OverlayUiState(
-            phase = AgentPhase.IDLE,
-            expanded = state.expanded,
-            sessionId = input.sessionId,
-            intent = input.title,
-            assistantText = input.assistantText,
-            toolChips = input.toolChips,
-            hud = state.hud,
-        )
-    }
+    private fun reduceEvent(
+        state: OverlayUiState,
+        event: AgentEvent,
+    ): OverlayUiState =
+        when (event) {
+            is AgentEvent.Started ->
+                OverlayUiState(
+                    // Fresh run: clear the transcript but preserve UI-local + HUD context.
+                    phase = AgentPhase.THINKING,
+                    expanded = state.expanded,
+                    sessionId = event.sessionId,
+                    intent = event.intent,
+                    hud = state.hud,
+                )
 
-    private fun reduceEvent(state: OverlayUiState, event: AgentEvent): OverlayUiState = when (event) {
-        is AgentEvent.Started -> OverlayUiState(
-            // Fresh run: clear the transcript but preserve UI-local + HUD context.
-            phase = AgentPhase.THINKING,
-            expanded = state.expanded,
-            sessionId = event.sessionId,
-            intent = event.intent,
-            hud = state.hud,
-        )
+            is AgentEvent.Thinking ->
+                state.copy(
+                    phase = AgentPhase.THINKING,
+                    thinking = state.thinking + event.text,
+                    isThinking = true,
+                )
 
-        is AgentEvent.Thinking -> state.copy(
-            phase = AgentPhase.THINKING,
-            thinking = state.thinking + event.text,
-            isThinking = true,
-        )
+            is AgentEvent.AssistantText ->
+                state.copy(
+                    phase = AgentPhase.SPEAKING,
+                    assistantText = state.assistantText + event.text,
+                    isThinking = false,
+                    confirmation = null,
+                )
 
-        is AgentEvent.AssistantText -> state.copy(
-            phase = AgentPhase.SPEAKING,
-            assistantText = state.assistantText + event.text,
-            isThinking = false,
-            confirmation = null,
-        )
+            is AgentEvent.ToolCallStarted ->
+                state.copy(
+                    phase = AgentPhase.ACTING,
+                    isThinking = false,
+                    toolChips =
+                        state.toolChips +
+                            ToolChip(
+                                id = event.id,
+                                name = event.name,
+                                argsJson = event.argsJson,
+                                status = ToolStatus.RUNNING,
+                            ),
+                )
 
-        is AgentEvent.ToolCallStarted -> state.copy(
-            phase = AgentPhase.ACTING,
-            isThinking = false,
-            toolChips = state.toolChips + ToolChip(
-                id = event.id,
-                name = event.name,
-                argsJson = event.argsJson,
-                status = ToolStatus.RUNNING,
-            ),
-        )
+            is AgentEvent.ToolCallFinished ->
+                state.copy(
+                    phase = AgentPhase.ACTING,
+                    confirmation = null,
+                    toolChips =
+                        state.toolChips.map { chip ->
+                            if (chip.id == event.id) {
+                                chip.copy(
+                                    status = if (event.success) ToolStatus.SUCCESS else ToolStatus.FAILURE,
+                                    result = event.message,
+                                )
+                            } else {
+                                chip
+                            }
+                        },
+                )
 
-        is AgentEvent.ToolCallFinished -> state.copy(
-            phase = AgentPhase.ACTING,
-            confirmation = null,
-            toolChips = state.toolChips.map { chip ->
-                if (chip.id == event.id) {
-                    chip.copy(
-                        status = if (event.success) ToolStatus.SUCCESS else ToolStatus.FAILURE,
-                        result = event.message,
-                    )
-                } else {
-                    chip
-                }
-            },
-        )
+            is AgentEvent.AwaitingConfirmation ->
+                state.copy(
+                    phase = AgentPhase.LISTENING,
+                    confirmation = ConfirmationPrompt(event.question, event.category),
+                )
 
-        is AgentEvent.AwaitingConfirmation -> state.copy(
-            phase = AgentPhase.LISTENING,
-            confirmation = ConfirmationPrompt(event.question, event.category),
-        )
+            is AgentEvent.Listening -> state.copy(phase = AgentPhase.LISTENING)
 
-        is AgentEvent.Listening -> state.copy(phase = AgentPhase.LISTENING)
+            is AgentEvent.Speaking -> state.copy(phase = AgentPhase.SPEAKING)
 
-        is AgentEvent.Speaking -> state.copy(phase = AgentPhase.SPEAKING)
+            // HUD is refreshed out-of-band from the DB; the raw usage event only nudges phase.
+            is AgentEvent.UsageUpdated -> state
 
-        // HUD is refreshed out-of-band from the DB; the raw usage event only nudges phase.
-        is AgentEvent.UsageUpdated -> state
+            is AgentEvent.Error ->
+                state.copy(
+                    phase = AgentPhase.IDLE,
+                    isThinking = false,
+                    error = event.message,
+                )
 
-        is AgentEvent.Error -> state.copy(
-            phase = AgentPhase.IDLE,
-            isThinking = false,
-            error = event.message,
-        )
-
-        is AgentEvent.Finished -> state.copy(
-            phase = AgentPhase.IDLE,
-            isThinking = false,
-            confirmation = null,
-            finished = true,
-            summary = event.summary,
-        )
-    }
+            is AgentEvent.Finished ->
+                state.copy(
+                    phase = AgentPhase.IDLE,
+                    isThinking = false,
+                    confirmation = null,
+                    finished = true,
+                    summary = event.summary,
+                )
+        }
 }

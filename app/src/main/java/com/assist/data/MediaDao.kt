@@ -6,7 +6,6 @@ import androidx.room.Query
 
 @Dao
 interface MediaDao {
-
     @Insert
     suspend fun insert(media: MediaEntity): Long
 
@@ -20,7 +19,10 @@ interface MediaDao {
         "SELECT COUNT(*) FROM media " +
             "WHERE sessionId = :sessionId AND kind = :kind AND dropped = 0",
     )
-    suspend fun countLive(sessionId: Long, kind: String): Int
+    suspend fun countLive(
+        sessionId: Long,
+        kind: String,
+    ): Int
 
     /** Live (not dropped) media ids of the given kind, newest first. */
     @Query(
@@ -28,7 +30,10 @@ interface MediaDao {
             "WHERE sessionId = :sessionId AND kind = :kind AND dropped = 0 " +
             "ORDER BY createdAt DESC",
     )
-    suspend fun liveIdsNewestFirst(sessionId: Long, kind: String): List<Long>
+    suspend fun liveIdsNewestFirst(
+        sessionId: Long,
+        kind: String,
+    ): List<Long>
 
     @Query("UPDATE media SET dropped = 1 WHERE id IN (:ids)")
     suspend fun markDropped(ids: List<Long>)

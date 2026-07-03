@@ -19,8 +19,10 @@ import androidx.core.content.ContextCompat
  * the [AgentLoop]. Debug-only convenience; not part of the shipped surface.
  */
 class DebugRunReceiver : BroadcastReceiver() {
-
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         when (intent.action) {
             ACTION_DEBUG_RUN -> {
                 val userIntent = intent.getStringExtra(AgentService.EXTRA_INTENT)?.trim().orEmpty()
@@ -29,13 +31,19 @@ class DebugRunReceiver : BroadcastReceiver() {
                     return
                 }
                 Log.i(TAG, "DEBUG_RUN -> \"$userIntent\"")
-                ContextCompat.startForegroundService(context, AgentService.runIntent(context, userIntent))
+                ContextCompat.startForegroundService(
+                    context,
+                    AgentService.runIntent(context, userIntent),
+                )
             }
             ACTION_DEBUG_INTERRUPT -> {
                 Log.i(TAG, "DEBUG_INTERRUPT")
                 ContextCompat.startForegroundService(
                     context,
-                    Intent(context, AgentService::class.java).setAction(AgentService.ACTION_INTERRUPT),
+                    Intent(
+                        context,
+                        AgentService::class.java,
+                    ).setAction(AgentService.ACTION_INTERRUPT),
                 )
             }
         }

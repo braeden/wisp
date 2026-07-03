@@ -27,7 +27,6 @@ import kotlinx.serialization.json.putJsonObject
  * nothing leaks into `com.assist.llm`.
  */
 internal object AnthropicRequestFactory {
-
     /**
      * All beta headers this [request] needs: context-management edits plus
      * fast-mode (phase-12), deduped.
@@ -56,27 +55,36 @@ internal object AnthropicRequestFactory {
         request.speed == Speed.FAST && request.model in FAST_MODE_MODELS
 
     /** Body for `POST /v1/messages`. */
-    fun messagesBody(json: Json, request: LlmRequest, stream: Boolean): JsonObject = buildJsonObject {
-        put("model", request.model)
-        put("max_tokens", request.maxTokens)
-        if (stream) put("stream", true)
-        if (fastModeApplies(request)) put("speed", "fast")
-        putThinking(request.thinkingAdaptive)
-        putEffort(request.effort)
-        putSystem(request.system)
-        putTools(json, request.tools)
-        put("messages", messagesArray(json, request.messages))
-        putContextManagement(request.contextManagement)
-    }
+    fun messagesBody(
+        json: Json,
+        request: LlmRequest,
+        stream: Boolean,
+    ): JsonObject =
+        buildJsonObject {
+            put("model", request.model)
+            put("max_tokens", request.maxTokens)
+            if (stream) put("stream", true)
+            if (fastModeApplies(request)) put("speed", "fast")
+            putThinking(request.thinkingAdaptive)
+            putEffort(request.effort)
+            putSystem(request.system)
+            putTools(json, request.tools)
+            put("messages", messagesArray(json, request.messages))
+            putContextManagement(request.contextManagement)
+        }
 
     /** Body for `POST /v1/messages/count_tokens` (no `max_tokens` / `stream`). */
-    fun countTokensBody(json: Json, request: LlmRequest): JsonObject = buildJsonObject {
-        put("model", request.model)
-        putThinking(request.thinkingAdaptive)
-        putSystem(request.system)
-        putTools(json, request.tools)
-        put("messages", messagesArray(json, request.messages))
-    }
+    fun countTokensBody(
+        json: Json,
+        request: LlmRequest,
+    ): JsonObject =
+        buildJsonObject {
+            put("model", request.model)
+            putThinking(request.thinkingAdaptive)
+            putSystem(request.system)
+            putTools(json, request.tools)
+            put("messages", messagesArray(json, request.messages))
+        }
 
     private fun JsonObjectBuilder.putThinking(adaptive: Boolean) {
         putJsonObject("thinking") {
@@ -111,7 +119,10 @@ internal object AnthropicRequestFactory {
         }
     }
 
-    private fun JsonObjectBuilder.putTools(json: Json, tools: List<ToolSpec>) {
+    private fun JsonObjectBuilder.putTools(
+        json: Json,
+        tools: List<ToolSpec>,
+    ) {
         if (tools.isEmpty()) return
         val last = tools.lastIndex
         putJsonArray("tools") {
@@ -138,56 +149,73 @@ internal object AnthropicRequestFactory {
         }
     }
 
-    private fun messagesArray(json: Json, messages: List<LlmMessage>): JsonArray = buildJsonArray {
-        messages.forEach { message ->
-            addJsonObject {
-                put("role", message.role.wire)
-                put("content", contentArray(json, message.content))
-            }
-        }
-    }
-
-    private fun contentArray(json: Json, blocks: List<ContentBlock>): JsonArray = buildJsonArray {
-        blocks.forEach { add(contentBlock(json, it)) }
-    }
-
-    private fun contentBlock(json: Json, block: ContentBlock): JsonObject = when (block) {
-        is ContentBlock.Text -> buildJsonObject {
-            put("type", "text")
-            put("text", block.text)
-        }
-
-        is ContentBlock.Image -> buildJsonObject {
-            put("type", "image")
-            putJsonObject("source") {
-                put("type", "base64")
-                put("media_type", block.mediaType)
-                put("data", block.base64)
+    private fun messagesArray(
+        json: Json,
+        messages: List<LlmMessage>,
+    ): JsonArray =
+        buildJsonArray {
+            messages.forEach { message ->
+                addJsonObject {
+                    put("role", message.role.wire)
+                    put("content", contentArray(json, message.content))
+                }
             }
         }
 
-        is ContentBlock.Thinking -> buildJsonObject {
-            put("type", "thinking")
-            put("thinking", block.text)
-            // Signature must be replayed verbatim on the same model.
-            block.signature?.let { put("signature", it) }
+    private fun contentArray(
+        json: Json,
+        blocks: List<ContentBlock>,
+    ): JsonArray =
+        buildJsonArray {
+            blocks.forEach { add(contentBlock(json, it)) }
         }
 
-        is ContentBlock.ToolUse -> buildJsonObject {
-            put("type", "tool_use")
-            put("id", block.id)
-            put("name", block.name)
-            // inputJson is a raw JSON object string; embed it as JSON, not a string.
-            put("input", parseObjectOrEmpty(json, block.inputJson))
-        }
+    private fun contentBlock(
+        json: Json,
+        block: ContentBlock,
+    ): JsonObject =
+        when (block) {
+            is ContentBlock.Text ->
+                buildJsonObject {
+                    put("type", "text")
+                    put("text", block.text)
+                }
 
-        is ContentBlock.ToolResult -> buildJsonObject {
-            put("type", "tool_result")
-            put("tool_use_id", block.toolUseId)
-            put("content", contentArray(json, block.content))
-            if (block.isError) put("is_error", true)
+            is ContentBlock.Image ->
+                buildJsonObject {
+                    put("type", "image")
+                    putJsonObject("source") {
+                        put("type", "base64")
+                        put("media_type", block.mediaType)
+                        put("data", block.base64)
+                    }
+                }
+
+            is ContentBlock.Thinking ->
+                buildJsonObject {
+                    put("type", "thinking")
+                    put("thinking", block.text)
+                    // Signature must be replayed verbatim on the same model.
+                    block.signature?.let { put("signature", it) }
+                }
+
+            is ContentBlock.ToolUse ->
+                buildJsonObject {
+                    put("type", "tool_use")
+                    put("id", block.id)
+                    put("name", block.name)
+                    // inputJson is a raw JSON object string; embed it as JSON, not a string.
+                    put("input", parseObjectOrEmpty(json, block.inputJson))
+                }
+
+            is ContentBlock.ToolResult ->
+                buildJsonObject {
+                    put("type", "tool_result")
+                    put("tool_use_id", block.toolUseId)
+                    put("content", contentArray(json, block.content))
+                    if (block.isError) put("is_error", true)
+                }
         }
-    }
 
     private fun JsonObjectBuilder.putContextManagement(cm: ContextManagement?) {
         if (cm == null || cm.isEmpty) return
@@ -215,26 +243,31 @@ internal object AnthropicRequestFactory {
         putJsonObject("cache_control") { put("type", "ephemeral") }
     }
 
-    private fun parseObjectOrEmpty(json: Json, raw: String): JsonObject =
+    private fun parseObjectOrEmpty(
+        json: Json,
+        raw: String,
+    ): JsonObject =
         runCatching { json.parseToJsonElement(raw) as? JsonObject }.getOrNull()
             ?: JsonObject(emptyMap())
 
     private val Effort.wire: String
-        get() = when (this) {
-            Effort.LOW -> "low"
-            Effort.MEDIUM -> "medium"
-            Effort.HIGH -> "high"
-            Effort.XHIGH -> "xhigh"
-            Effort.MAX -> "max"
-        }
+        get() =
+            when (this) {
+                Effort.LOW -> "low"
+                Effort.MEDIUM -> "medium"
+                Effort.HIGH -> "high"
+                Effort.XHIGH -> "xhigh"
+                Effort.MAX -> "max"
+            }
 
     private val Role.wire: String
-        get() = when (this) {
-            Role.USER -> "user"
-            Role.ASSISTANT -> "assistant"
-            // Mid-conversation system turn (phase-12).
-            Role.SYSTEM -> "system"
-        }
+        get() =
+            when (this) {
+                Role.USER -> "user"
+                Role.ASSISTANT -> "assistant"
+                // Mid-conversation system turn (phase-12).
+                Role.SYSTEM -> "system"
+            }
 
     const val BETA_CONTEXT_MANAGEMENT = "context-management-2025-06-27"
     const val BETA_COMPACT = "compact-2026-01-12"

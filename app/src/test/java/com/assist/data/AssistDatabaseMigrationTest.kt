@@ -26,7 +26,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class AssistDatabaseMigrationTest {
-
     private lateinit var context: Context
     private val dbName = "migration-test.db"
 
@@ -44,26 +43,34 @@ class AssistDatabaseMigrationTest {
     @Test
     fun `migration 1 to 2 preserves sessions and creates task_recipes`() {
         val factory = FrameworkSQLiteOpenHelperFactory()
-        val config = SupportSQLiteOpenHelper.Configuration.builder(context)
-            .name(dbName)
-            .callback(object : SupportSQLiteOpenHelper.Callback(1) {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                    db.execSQL(
-                        "CREATE TABLE IF NOT EXISTS `sessions` (" +
-                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                            "`title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, " +
-                            "`updatedAt` INTEGER NOT NULL, `modelDefault` TEXT NOT NULL, " +
-                            "`status` TEXT NOT NULL, `systemPromptVersion` INTEGER NOT NULL)",
-                    )
-                    db.execSQL(
-                        "INSERT INTO sessions (title, createdAt, updatedAt, modelDefault, status, systemPromptVersion) " +
-                            "VALUES ('keep me', 1, 1, 'claude-opus-4-8', 'active', 1)",
-                    )
-                }
+        val config =
+            SupportSQLiteOpenHelper.Configuration
+                .builder(context)
+                .name(dbName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(1) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            db.execSQL(
+                                "CREATE TABLE IF NOT EXISTS `sessions` (" +
+                                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                                    "`title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, " +
+                                    "`updatedAt` INTEGER NOT NULL, `modelDefault` TEXT NOT NULL, " +
+                                    "`status` TEXT NOT NULL, `systemPromptVersion` INTEGER NOT NULL)",
+                            )
+                            db.execSQL(
+                                "INSERT INTO sessions (title, createdAt, updatedAt, " +
+                                    "modelDefault, status, systemPromptVersion) " +
+                                    "VALUES ('keep me', 1, 1, 'claude-opus-4-8', 'active', 1)",
+                            )
+                        }
 
-                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
-            })
-            .build()
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int,
+                        ) = Unit
+                    },
+                ).build()
 
         val helper = factory.create(config)
         val db = helper.writableDatabase
@@ -81,12 +88,15 @@ class AssistDatabaseMigrationTest {
         }
 
         // The new table exists...
-        db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='task_recipes'").use { c ->
+        val recipesTable =
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='task_recipes'"
+        db.query(recipesTable).use { c ->
             assertTrue(c.moveToFirst())
         }
         // ...and is usable with the expected columns.
         db.execSQL(
-            "INSERT INTO task_recipes (title, intentKeywords, memoryPath, appPackage, useCount, lastUsedAt, createdAt) " +
+            "INSERT INTO task_recipes (title, intentKeywords, memoryPath, " +
+                "appPackage, useCount, lastUsedAt, createdAt) " +
                 "VALUES ('t', 'k', '/memories/tasks/x.md', NULL, 0, 1, 1)",
         )
         db.query("SELECT COUNT(*) FROM task_recipes").use { c ->

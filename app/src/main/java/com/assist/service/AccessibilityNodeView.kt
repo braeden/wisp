@@ -12,7 +12,6 @@ import android.view.accessibility.AccessibilityNodeInfo
 class AccessibilityNodeView(
     private val node: AccessibilityNodeInfo,
 ) : NodeView {
-
     override val packageName: String? get() = node.packageName?.toString()
     override val className: String? get() = node.className?.toString()
     override val resourceId: String? get() = node.viewIdResourceName
@@ -44,7 +43,8 @@ class AccessibilityNodeView(
 
     override fun performClick(): Boolean = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
 
-    override fun performLongClick(): Boolean = node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
+    override fun performLongClick(): Boolean =
+        node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
 
     override fun performScrollForward(): Boolean =
         node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
@@ -54,9 +54,10 @@ class AccessibilityNodeView(
 
     override fun performSetText(text: String): Boolean {
         node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-        val args = Bundle().apply {
-            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-        }
+        val args =
+            Bundle().apply {
+                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            }
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 

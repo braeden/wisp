@@ -27,16 +27,17 @@ object SessionsReducer {
     fun reduce(summaries: List<SessionSummary>): SessionsUiState =
         SessionsUiState(
             loading = false,
-            rows = summaries.map { s ->
-                SessionRowUi(
-                    id = s.session.id,
-                    title = s.session.title.ifBlank { "Untitled session" },
-                    updatedAt = s.session.updatedAt,
-                    status = s.session.status,
-                    costUsd = s.costUsd,
-                    messageCount = s.messageCount,
-                    model = s.session.modelDefault,
-                )
-            },
+            rows =
+                summaries.map { s ->
+                    SessionRowUi(
+                        id = s.session.id,
+                        title = s.session.title.ifBlank { "Untitled session" },
+                        updatedAt = s.session.updatedAt,
+                        status = s.session.status,
+                        costUsd = s.costUsd,
+                        messageCount = s.messageCount,
+                        model = s.session.modelDefault,
+                    )
+                },
         )
 }
