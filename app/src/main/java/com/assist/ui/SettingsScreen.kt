@@ -235,7 +235,9 @@ private fun PermissionRow(
 @Composable
 private fun OverlayCard(overlayOk: Boolean) {
     val context = LocalContext.current
-    var shown by remember { mutableStateOf(false) }
+    // Reflect the overlay's *actual* run state (survives leaving/returning to the
+    // app), not a local toggle that desyncs when the overlay is closed elsewhere.
+    val shown by OverlayService.running.collectAsState()
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -260,13 +262,7 @@ private fun OverlayCard(overlayOk: Boolean) {
             }
             Button(
                 onClick = {
-                    if (shown) {
-                        OverlayService.stop(context)
-                        shown = false
-                    } else {
-                        OverlayService.start(context)
-                        shown = true
-                    }
+                    if (shown) OverlayService.stop(context) else OverlayService.start(context)
                 },
                 enabled = overlayOk,
                 modifier = Modifier.fillMaxWidth(),

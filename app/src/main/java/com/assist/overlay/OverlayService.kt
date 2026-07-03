@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.NotificationCompat
@@ -22,8 +23,13 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.assist.R
+import com.assist.agent.AgentService
 import com.assist.ui.theme.AssistTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -57,6 +63,7 @@ class OverlayService : Service() {
         ensureChannel()
         startForegroundInternal()
         addOverlay()
+        _running.value = true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -67,6 +74,7 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
+        _running.value = false
         removeOverlay()
         super.onDestroy()
     }
@@ -102,6 +110,7 @@ class OverlayService : Service() {
             setViewTreeSavedStateRegistryOwner(owner)
             setContent {
                 AssistTheme {
+                    val uiScope = rememberCoroutineScope()
                     val state by controller.uiState.collectAsState()
                     val sessions by controller.sessions.collectAsState()
                     OverlayRoot(
@@ -110,6 +119,19 @@ class OverlayService : Service() {
                         onToggleExpanded = controller::toggleExpanded,
                         onDrag = ::moveBy,
                         onInterrupt = controller::interrupt,
+                        onRecordNewMessage = {
+                            // Collapsed "record": dictate a fresh instruction and
+                            // run it as a new task (supersedes any in-flight run).
+                            uiScope.launch {
+                                val text = controller.dictate()
+                                if (!text.isNullOrBlank()) {
+                                    ContextCompat.startForegroundService(
+                                        this@OverlayService,
+                                        AgentService.runIntent(this@OverlayService, text),
+                                    )
+                                }
+                            }
+                        },
                         onNewSession = controller::newSession,
                         onSwitchSession = controller::switchSession,
                         onCompact = controller::compactNow,
@@ -126,6 +148,11 @@ class OverlayService : Service() {
         }
         composeView = view
 
+        // Re-clamp whenever the content resizes (e.g. expand/collapse) so a panel
+        // that grows near an edge is pulled back on-screen instead of stranding its
+        // controls off the display.
+        view.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> clampToScreen() }
+
         runCatching { wm.addView(view, layoutParams) }
             .onFailure { Log.e(TAG, "addView failed (overlay permission missing?)", it) }
     }
@@ -139,26 +166,52 @@ class OverlayService : Service() {
         params = null
     }
 
-    /** Drag handler: shift the window by [delta] px and re-layout. */
+    /** Drag handler: shift the window by [delta] px, then clamp it on-screen. */
     private fun moveBy(delta: Offset) {
         val p = params ?: return
         val view = composeView ?: return
         p.x += delta.x.toInt()
         p.y += delta.y.toInt()
         runCatching { windowManager?.updateViewLayout(view, p) }
+        clampToScreen()
+    }
+
+    /**
+     * Keep the window's top-left within the display so it can never be dragged —
+     * or grown, on expand — fully off-screen (which would strand its controls).
+     * Re-invoked on every layout change (see [addOverlay]).
+     */
+    private fun clampToScreen() {
+        val p = params ?: return
+        val view = composeView ?: return
+        val wm = windowManager ?: return
+        val bounds = wm.currentWindowMetrics.bounds
+        val maxX = (bounds.width() - view.width).coerceAtLeast(0)
+        val maxY = (bounds.height() - view.height).coerceAtLeast(0)
+        val nx = p.x.coerceIn(0, maxX)
+        val ny = p.y.coerceIn(0, maxY)
+        if (nx != p.x || ny != p.y) {
+            p.x = nx
+            p.y = ny
+            runCatching { wm.updateViewLayout(view, p) }
+        }
     }
 
     /**
      * Toggle window focusability. Non-focusable is the default (so the driven app
-     * keeps input); focusable is set only to capture a typed reply + soft keyboard.
+     * keeps input); focusable + a visible soft keyboard is set only to capture a
+     * typed reply, then reverted.
      */
     private fun setFocusable(focusable: Boolean) {
         val p = params ?: return
         val view = composeView ?: return
-        p.flags = if (focusable) {
-            BASE_FLAGS and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        if (focusable) {
+            p.flags = BASE_FLAGS and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+            p.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         } else {
-            BASE_FLAGS
+            p.flags = BASE_FLAGS
+            p.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
         }
         runCatching { windowManager?.updateViewLayout(view, p) }
     }
@@ -194,6 +247,11 @@ class OverlayService : Service() {
         private const val NOTIFICATION_ID = 43
 
         const val ACTION_STOP = "com.assist.action.OVERLAY_STOP"
+
+        private val _running = MutableStateFlow(false)
+
+        /** Whether the overlay window is currently shown. Drives the Settings toggle. */
+        val running: StateFlow<Boolean> = _running.asStateFlow()
 
         private const val BASE_FLAGS =
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or

@@ -16,12 +16,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,11 +44,14 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.assist.data.SessionEntity
@@ -65,6 +72,7 @@ fun OverlayRoot(
     onToggleExpanded: () -> Unit,
     onDrag: (Offset) -> Unit,
     onInterrupt: () -> Unit,
+    onRecordNewMessage: () -> Unit,
     onNewSession: () -> Unit,
     onSwitchSession: (Long) -> Unit,
     onCompact: () -> Unit,
@@ -93,6 +101,7 @@ fun OverlayRoot(
             state = state,
             onTap = onToggleExpanded,
             onInterrupt = onInterrupt,
+            onRecordNewMessage = onRecordNewMessage,
             onDrag = onDrag,
         )
     }
@@ -105,51 +114,59 @@ private fun Bubble(
     state: OverlayUiState,
     onTap: () -> Unit,
     onInterrupt: () -> Unit,
+    onRecordNewMessage: () -> Unit,
     onDrag: (Offset) -> Unit,
 ) {
     val busy = state.phase != AgentPhase.IDLE && state.phase != AgentPhase.LISTENING
     Surface(
-        shape = CircleShape,
+        shape = RoundedCornerShape(24.dp),
         color = phaseColor(state.phase),
         shadowElevation = 6.dp,
-        modifier = Modifier
-            .pointerInput(Unit) {
-                detectDragGestures { change, delta ->
-                    change.consume()
-                    onDrag(delta)
-                }
+        modifier = Modifier.pointerInput(Unit) {
+            detectDragGestures { change, delta ->
+                change.consume()
+                onDrag(delta)
             }
-            .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }) },
+        },
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (busy) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp,
+            // Status + tap-to-expand (only this region expands; buttons act directly).
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.pointerInput(Unit) { detectTapGestures(onTap = { onTap() }) },
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White,
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(Color.White),
+                    )
+                }
+                Text(
+                    text = phaseLabel(state.phase),
                     color = Color.White,
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
-            Text(
-                text = phaseLabel(state.phase),
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            // Stop affordance while a task is in flight.
-            if (busy) {
-                IconButton(onClick = onInterrupt, modifier = Modifier.size(24.dp)) {
-                    StopGlyph()
-                }
+            // Record a new spoken instruction (runs it as a task).
+            IconButton(onClick = onRecordNewMessage, modifier = Modifier.size(36.dp)) {
+                Icon(MicIcon, contentDescription = "Record a message", tint = Color.White)
+            }
+            // Stop the current task.
+            IconButton(onClick = onInterrupt, modifier = Modifier.size(36.dp)) {
+                StopGlyph()
             }
         }
     }
@@ -393,33 +410,29 @@ private fun ReplyField(
     onSetFocusable: (Boolean) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
     var typing by remember { mutableStateOf(false) }
     var text by remember { mutableStateOf("") }
     var dictating by remember { mutableStateOf(false) }
 
     if (!typing) {
-        // Collapsed: type, or tap the mic to speak an answer and send it directly.
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedButton(
-                onClick = {
-                    typing = true
-                    onSetFocusable(true)
-                },
-                modifier = Modifier.weight(1f),
-            ) { Text(if (dictating) "Listening…" else "Type a reply") }
-            MicButton(dictating) {
-                dictating = true
-                scope.launch {
-                    val spoken = onDictate()
-                    dictating = false
-                    if (!spoken.isNullOrBlank()) onSubmitReply(spoken)
-                }
-            }
-        }
+        OutlinedButton(
+            onClick = {
+                typing = true
+                onSetFocusable(true)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Type or speak a reply") }
         return
+    }
+
+    // Grab focus + raise the soft keyboard as soon as the field appears.
+    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+
+    fun dismiss() {
+        text = ""
+        typing = false
+        onSetFocusable(false)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -427,50 +440,43 @@ private fun ReplyField(
             value = text,
             onValueChange = { text = it },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                onClick = {
-                    onSubmitReply(text)
-                    text = ""
-                    typing = false
-                    onSetFocusable(false)
-                },
-                enabled = text.isNotBlank(),
-            ) { Text("Send") }
-            TextButton(onClick = {
-                text = ""
-                typing = false
-                onSetFocusable(false)
-            }) { Text("Cancel") }
-            Spacer(Modifier.weight(1f))
-            // Dictate into the field (append), so the user can still edit before sending.
-            MicButton(dictating) {
-                dictating = true
-                scope.launch {
-                    val spoken = onDictate()
-                    dictating = false
-                    if (!spoken.isNullOrBlank()) {
-                        text = if (text.isBlank()) spoken else "$text $spoken"
+            placeholder = { Text("Reply…") },
+            // Mic lives *inside* the input box and dictates into the field.
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        if (dictating) return@IconButton
+                        dictating = true
+                        scope.launch {
+                            val spoken = onDictate()
+                            dictating = false
+                            if (!spoken.isNullOrBlank()) {
+                                text = if (text.isBlank()) spoken else "$text $spoken"
+                            }
+                        }
+                    },
+                ) {
+                    if (dictating) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(MicIcon, contentDescription = "Dictate")
                     }
                 }
-            }
-        }
-    }
-}
-
-/** Mic affordance for the reply field; shows a spinner while capturing. */
-@Composable
-private fun MicButton(dictating: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = { if (!dictating) onClick() }) {
-        if (dictating) {
-            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-        } else {
-            Text("🎤", style = MaterialTheme.typography.titleMedium)
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(
+                onSend = { if (text.isNotBlank()) { onSubmitReply(text); dismiss() } },
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { onSubmitReply(text); dismiss() },
+                enabled = text.isNotBlank(),
+            ) { Text("Send") }
+            TextButton(onClick = { dismiss() }) { Text("Cancel") }
         }
     }
 }
@@ -487,7 +493,6 @@ private fun ControlsRow(
     ) {
         TextButton(onClick = onNewSession) { Text("New", style = MaterialTheme.typography.labelSmall) }
         TextButton(onClick = onCompact) { Text("Compact", style = MaterialTheme.typography.labelSmall) }
-        Spacer(Modifier.weight(1f))
         TextButton(onClick = onStop) { Text("Hide", style = MaterialTheme.typography.labelSmall) }
     }
 }
