@@ -8,6 +8,8 @@ import com.assist.data.ContextTracker
 import com.assist.data.SessionEntity
 import com.assist.data.SessionRepository
 import com.assist.data.SettingsStore
+import com.assist.data.TranscriptBlock
+import com.assist.data.TranscriptRole
 import com.assist.di.AppScope
 import com.assist.voice.AudioSessionArbiter
 import com.assist.voice.MicOwner
@@ -149,16 +151,58 @@ class OverlayController @Inject constructor(
         }
     }
 
-    /** Switch the current/HUD session to [sessionId]. */
+    /** Switch the current/HUD session to [sessionId], backfilling its context. */
     fun switchSession(sessionId: Long) {
         scope.launch {
             val session = repository.resumeSession(sessionId)
             currentSessionId = sessionId
-            hud.tryEmit(OverlayInput.SessionChanged(sessionId, session?.title))
+            val (lastText, chips) = loadBackfill(sessionId)
+            hud.tryEmit(
+                OverlayInput.SessionChanged(
+                    sessionId = sessionId,
+                    title = session?.title,
+                    assistantText = lastText,
+                    toolChips = chips,
+                ),
+            )
             refreshHud()
-            Log.i(TAG, "overlay switch session=$sessionId")
+            Log.i(TAG, "overlay switch session=$sessionId (backfilled ${chips.size} chips)")
         }
     }
+
+    /**
+     * The switched-to session's recent context for the panel: its last non-blank
+     * assistant message plus the most recent tool calls, straight from Room.
+     * Failures degrade to an empty backfill — switching must never crash the UI.
+     */
+    private suspend fun loadBackfill(sessionId: Long): Pair<String, List<ToolChip>> =
+        runCatching {
+            val transcript = repository.getTranscript(sessionId)
+            val lastText = transcript
+                .lastOrNull { msg ->
+                    msg.role == TranscriptRole.ASSISTANT &&
+                        msg.blocks.any { it is TranscriptBlock.Text && it.text.isNotBlank() }
+                }
+                ?.blocks
+                ?.filterIsInstance<TranscriptBlock.Text>()
+                ?.joinToString("\n") { it.text }
+                .orEmpty()
+            val chips = repository.listToolCalls(sessionId)
+                .takeLast(BACKFILL_CHIP_COUNT)
+                .map { call ->
+                    ToolChip(
+                        id = "db-${call.id}",
+                        name = call.name,
+                        argsJson = call.argsJson,
+                        status = if (call.success) ToolStatus.SUCCESS else ToolStatus.FAILURE,
+                        result = call.resultJson,
+                    )
+                }
+            lastText to chips
+        }.getOrElse {
+            Log.w(TAG, "backfill failed for session=$sessionId", it)
+            "" to emptyList()
+        }
 
     /** Same op the `drop_old_screenshots` tool uses: drop all but the last screenshot. */
     fun dropScreenshotsNow() {
@@ -265,6 +309,7 @@ class OverlayController @Inject constructor(
         private const val TEXT_THROTTLE_MS = 80L
         private const val STOP_TIMEOUT_MS = 5_000L
         private const val COMPACT_KEEP_LAST = 4
+        private const val BACKFILL_CHIP_COUNT = 6
     }
 }
 

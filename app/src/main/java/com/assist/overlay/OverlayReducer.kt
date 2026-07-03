@@ -13,8 +13,17 @@ sealed interface OverlayInput {
     @JvmInline value class Hud(val status: ContextStatus) : OverlayInput
     @JvmInline value class Expand(val expanded: Boolean) : OverlayInput
 
-    /** New/switched session: clear the previous run's transcript view. */
-    data class SessionChanged(val sessionId: Long, val title: String? = null) : OverlayInput
+    /**
+     * New/switched session: replace the run view with the selected session's
+     * backfilled tail — its last assistant message and recent tool chips —
+     * loaded from the DB by [OverlayController.switchSession].
+     */
+    data class SessionChanged(
+        val sessionId: Long,
+        val title: String? = null,
+        val assistantText: String = "",
+        val toolChips: List<ToolChip> = emptyList(),
+    ) : OverlayInput
 }
 
 /**
@@ -29,14 +38,16 @@ class OverlayReducer {
         is OverlayInput.Event -> reduceEvent(state, input.event)
         is OverlayInput.Hud -> state.copy(hud = HudState.from(input.status))
         is OverlayInput.Expand -> state.copy(expanded = input.expanded)
-        // Same clearing as a fresh run: the old run's text/chips belong to the
-        // previous session and would otherwise linger next to a reset HUD. The
-        // session title stands in as the intent line so the switch is visible.
+        // Replace the previous run's view with the switched-to session's own
+        // recent context (title + last assistant text + recent tool chips), so
+        // the panel visibly shows where that conversation left off.
         is OverlayInput.SessionChanged -> OverlayUiState(
             phase = AgentPhase.IDLE,
             expanded = state.expanded,
             sessionId = input.sessionId,
             intent = input.title,
+            assistantText = input.assistantText,
+            toolChips = input.toolChips,
             hud = state.hud,
         )
     }

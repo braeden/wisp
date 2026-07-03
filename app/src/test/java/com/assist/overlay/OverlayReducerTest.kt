@@ -139,4 +139,38 @@ class OverlayReducerTest {
         assertTrue(state.expanded)
         assertEquals("keep", state.assistantText)
     }
+
+    @Test
+    fun `session change replaces the run view with the backfilled tail`() {
+        val dirty = OverlayUiState.INITIAL.copy(
+            phase = AgentPhase.ACTING,
+            sessionId = 1L,
+            intent = "old task",
+            assistantText = "old text",
+            toolChips = listOf(ToolChip("t", "tap", "{}", ToolStatus.SUCCESS)),
+            finished = true,
+            expanded = true,
+            hud = HudState(usedTokens = 5, windowTokens = 10, costUsd = 0.1, screenshotCount = 1),
+        )
+        val backfilledChip = ToolChip("db-9", "open_app", "{}", ToolStatus.SUCCESS, result = "ok")
+        val state = reducer.reduce(
+            dirty,
+            OverlayInput.SessionChanged(
+                sessionId = 2L,
+                title = "timer session",
+                assistantText = "Timer is running.",
+                toolChips = listOf(backfilledChip),
+            ),
+        )
+
+        assertEquals(AgentPhase.IDLE, state.phase)
+        assertEquals(2L, state.sessionId)
+        assertEquals("timer session", state.intent)
+        assertEquals("Timer is running.", state.assistantText)
+        assertEquals(listOf(backfilledChip), state.toolChips)
+        assertFalse(state.finished)
+        // UI-local expand + HUD survive the switch (HUD refreshes async after).
+        assertTrue(state.expanded)
+        assertEquals(5, state.hud?.usedTokens)
+    }
 }
