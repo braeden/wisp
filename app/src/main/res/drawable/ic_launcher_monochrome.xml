@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Themed-icon (Android 13+) mask: the wisp flame + sparks as one tint. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M58,29 C57,35 63,40 64.5,48 C66.5,58.5 61,66.5 54,69
+            C47,66.5 41.5,58.5 43.5,48 C45,40.5 50,37 52.5,31.5
+            C53.5,29.3 56,27.5 58,29 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M68,36 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M35.7,42 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0 Z" />
+</vector>
