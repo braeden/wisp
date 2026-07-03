@@ -41,9 +41,14 @@ class AndroidSttEngine(
     private val appContext = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
 
-    /** The recognizer currently listening, if any — destroyed by [cancel]. */
+    /**
+     * Aborts the capture currently in flight, if any. Destroying the recognizer is
+     * not enough: `SpeechRecognizer.cancel()` suppresses the pending callbacks, so
+     * the abort must also complete the caller (close the stream / resume the
+     * continuation) or `dictate()`/`ask()` would hang forever on a cancelled mic.
+     */
     @Volatile
-    private var active: SpeechRecognizer? = null
+    private var abortActive: (() -> Unit)? = null
 
     override suspend fun isAvailable(): Boolean =
         withContext(Dispatchers.Main.immediate) {
@@ -57,10 +62,19 @@ class AndroidSttEngine(
                 val recognizer = createRecognizer(config)
                 val settled = AtomicBoolean(false)
 
+                val abort: () -> Unit = {
+                    if (settled.compareAndSet(false, true)) {
+                        main.post { destroy(recognizer) }
+                        if (cont.isActive) {
+                            cont.resumeWithException(SttException(SttError.CANCELLED))
+                        }
+                    }
+                }
                 val listener =
                     object : BaseListener() {
                         override fun onResults(results: Bundle) {
                             if (!settled.compareAndSet(false, true)) return
+                            clearAbort(abort)
                             val result = results.toSttResult()
                             destroy(recognizer)
                             if (cont.isActive) cont.resume(result)
@@ -68,6 +82,7 @@ class AndroidSttEngine(
 
                         override fun onError(error: Int) {
                             if (!settled.compareAndSet(false, true)) return
+                            clearAbort(abort)
                             destroy(recognizer)
                             if (cont.isActive) {
                                 cont.resumeWithException(SttException(SttErrorMapper.map(error)))
@@ -75,8 +90,10 @@ class AndroidSttEngine(
                         }
                     }
 
+                abortActive = abort
                 startListening(recognizer, listener, config)
                 cont.invokeOnCancellation {
+                    clearAbort(abort)
                     if (settled.compareAndSet(false, true)) main.post { destroy(recognizer) }
                 }
             }
@@ -90,6 +107,12 @@ class AndroidSttEngine(
                 close()
                 return@callbackFlow
             }
+
+            // Registered before the recognizer even exists so a cancel() that races
+            // recognizer creation still tears the capture down (awaitClose destroys
+            // whatever recognizer was created by then).
+            val abort: () -> Unit = { close() }
+            abortActive = abort
 
             var recognizer: SpeechRecognizer? = null
             val listener =
@@ -128,13 +151,18 @@ class AndroidSttEngine(
             }
 
             awaitClose {
+                clearAbort(abort)
                 main.post { recognizer?.let { destroy(it) } }
             }
         }
 
     override fun cancel() {
-        val current = active
-        main.post { current?.let { destroy(it) } }
+        abortActive?.invoke()
+    }
+
+    /** Clear the abort hook, but only if it still belongs to the ending session. */
+    private fun clearAbort(abort: () -> Unit) {
+        if (abortActive === abort) abortActive = null
     }
 
     // --- Recognizer plumbing (main thread) ---------------------------------
@@ -151,7 +179,6 @@ class AndroidSttEngine(
             } else {
                 SpeechRecognizer.createSpeechRecognizer(appContext)
             }
-        active = recognizer
         return recognizer
     }
 
@@ -170,7 +197,6 @@ class AndroidSttEngine(
             recognizer.cancel()
             recognizer.destroy()
         }.onFailure { Log.d(TAG, "recognizer teardown: ${it.message}") }
-        if (active === recognizer) active = null
     }
 
     private fun buildIntent(config: SttConfig) =

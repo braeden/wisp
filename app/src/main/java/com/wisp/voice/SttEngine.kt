@@ -79,6 +79,9 @@ enum class SttError {
     LANGUAGE_UNAVAILABLE,
     ON_DEVICE_UNAVAILABLE,
     CLIENT,
+
+    /** The capture was aborted via [SttEngine.cancel] (e.g. mic tapped again). */
+    CANCELLED,
     UNKNOWN,
 }
 
