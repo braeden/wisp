@@ -48,6 +48,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Sideload targets are arm64 only (Pixel 7 Pro + the arm64 AVD); the
+        // other ABIs were ~35 MB of unused onnxruntime libs in every APK.
+        ndk { abiFilters += "arm64-v8a" }
+
         // Injected for the opt-in real-Claude smoke test (androidTest). Reads the
         // `anthropicApiKey` Gradle property or ANTHROPIC_API_KEY env var; defaults
         // to empty so the smoke test skips cleanly when no key is present. NEVER
@@ -189,8 +193,11 @@ dependencies {
     // HTTP transport for the Claude client (phase-04)
     implementation(libs.okhttp)
 
-    // Wake word detection (phase-09) — openWakeWord ONNX runtime port
+    // Wake word detection (phase-09) — openWakeWord ONNX runtime port.
+    // onnxruntime pinned above openwakeword's transitive 1.18.0: 1.18 ships
+    // 4 KB-aligned ELF segments and fails Android's 16 KB page-size check.
     implementation(libs.openwakeword)
+    implementation(libs.onnxruntime.android)
 
     // Test
     testImplementation(libs.junit)
