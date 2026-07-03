@@ -47,10 +47,8 @@
     <string name="tts_engine_default">System default</string>
     <string name="tts_engine_default_named">System default (%1$s)</string>
     <string name="wake_header">Wake word</string>
-    <string name="wake_desc">Say the keyword to open the overlay already listening — hands-free. Runs a small on-device detector (Porcupine) with a persistent mic indicator while armed.</string>
+    <string name="wake_desc">Say the keyword to open the overlay already listening — hands-free. Runs a small on-device detector (openWakeWord) with a persistent mic indicator while armed.</string>
     <string name="wake_keyword_label">Keyword: %1$s</string>
-    <string name="wake_needs_key">Needs a free Picovoice AccessKey (console.picovoice.ai)</string>
-    <string name="picovoice_key_hint">Picovoice AccessKey</string>
     <string name="wake_enable">Start listening for the wake word</string>
     <string name="wake_disable">Stop wake word</string>
     <string name="wake_notification_text">Listening for the wake word</string>

@@ -85,7 +85,7 @@ interface SettingsStore {
 
     fun setWakeKeyword(keyword: String)
 
-    /** Wake keyword name (a Porcupine built-in, e.g. "PORCUPINE"). */
+    /** Wake-word model name (see `voice/wake/WakeWords`, e.g. "alexa"). */
     val wakeKeyword: StateFlow<String>
 }
 
@@ -146,6 +146,6 @@ class PrefsSettingsStore(
         const val KEY_MODEL = "agent_model"
         const val KEY_TTS_ENGINE = "tts_engine"
         const val KEY_WAKE_KEYWORD = "wake_keyword"
-        const val DEFAULT_WAKE_KEYWORD = "PORCUPINE"
+        const val DEFAULT_WAKE_KEYWORD = "alexa"
     }
 }

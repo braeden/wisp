@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Always-listening keyword spotter on its own audio tap — deliberately **not**
  * part of [SttEngine] (see `.claude/voice-architecture.md`: `SpeechRecognizer`
- * can't be an always-on wake detector). Implemented in phase-09 (Porcupine /
- * openWakeWord) and coordinated with `listenOnce`/barge-in through the shared
+ * can't be an always-on wake detector). Implemented in phase-09 (openWakeWord)
+ * and coordinated with `listenOnce`/barge-in through the shared
  * [AudioSessionArbiter]. Declared here so [VoiceProvider] can reference it; the
  * phase-08 `android` provider returns `null`.
  */

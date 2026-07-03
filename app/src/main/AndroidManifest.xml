@@ -86,7 +86,7 @@
                 android:value="on-device AI phone agent" />
         </service>
 
-        <!-- phase-09 — always-on wake-word foreground service (Porcupine).
+        <!-- phase-09 — always-on wake-word foreground service (openWakeWord).
              `microphone` type keeps the OS mic indicator honest while armed. -->
         <service
             android:name=".voice.wake.WakeWordService"

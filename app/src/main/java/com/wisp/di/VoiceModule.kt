@@ -4,7 +4,6 @@ import android.content.Context
 import com.wisp.agent.AgentEventBus
 import com.wisp.agent.AgentLoop
 import com.wisp.agent.UserIo
-import com.wisp.data.SecretStore
 import com.wisp.data.SettingsStore
 import com.wisp.voice.AudioSessionArbiter
 import com.wisp.voice.DefaultAudioSessionArbiter
@@ -18,7 +17,7 @@ import com.wisp.voice.android.AndroidTtsEngine
 import com.wisp.voice.WakeWordDetector
 import com.wisp.voice.android.AndroidVoiceProvider
 import com.wisp.voice.android.BargeInDetector
-import com.wisp.voice.wake.PorcupineWakeWordDetector
+import com.wisp.voice.wake.NoopWakeWordDetector
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -79,11 +78,7 @@ object VoiceModule {
 
     @Provides
     @Singleton
-    fun provideWakeWordDetector(
-        @ApplicationContext context: Context,
-        secrets: SecretStore,
-        arbiter: AudioSessionArbiter,
-    ): WakeWordDetector = PorcupineWakeWordDetector(context, secrets, arbiter)
+    fun provideWakeWordDetector(): WakeWordDetector = NoopWakeWordDetector()
 
     @Provides
     @Singleton

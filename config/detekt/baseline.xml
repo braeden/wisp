@@ -45,7 +45,7 @@
     <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun PermissionsCard( accessibilityOk: Boolean, overlayOk: Boolean, micOk: Boolean, notifOk: Boolean, onAccessibility: () -&gt; Unit, onOverlay: () -&gt; Unit, onMic: () -&gt; Unit, onNotif: () -&gt; Unit, )</ID>
     <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun SectionHeader(title: String)</ID>
     <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun TtsEngineCard( engines: List&lt;TtsEngineChoice&gt;, selected: String?, defaultEngine: String?, onSelect: (String?) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun WakeWordCard( keyword: String, hasPicovoiceKey: Boolean, micOk: Boolean, onSelectKeyword: (String) -&gt; Unit, onSaveKey: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun WakeWordCard( keyword: String, micOk: Boolean, onSelectKeyword: (String) -&gt; Unit, )</ID>
     <ID>FunctionNaming:Theme.kt$@Composable fun WispTheme( darkTheme: Boolean = isSystemInDarkTheme(), dynamicColor: Boolean = true, content: @Composable () -&gt; Unit, )</ID>
     <ID>FunctionNaming:VoiceTestScreen.kt$@Composable fun VoiceTestScreen(viewModel: VoiceTestViewModel = hiltViewModel())</ID>
     <ID>InstanceOfCheckForException:BargeInDetector.kt$BargeInDetector$t is kotlinx.coroutines.CancellationException</ID>
@@ -61,7 +61,6 @@
     <ID>LongMethod:SessionRepositoryTest.kt$SessionRepositoryTest$@Test fun `stale screen outlines are stubbed on rebuild - only the newest survives`()</ID>
     <ID>LongMethod:SessionsScreen.kt$@Composable fun SessionsScreen( onOpenSession: (Long) -&gt; Unit, viewModel: SessionsViewModel = hiltViewModel(), )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen( viewModel: OnboardingViewModel = hiltViewModel(), settingsViewModel: SettingsViewModel = hiltViewModel(), )</ID>
-    <ID>LongMethod:SettingsScreen.kt$@Composable private fun WakeWordCard( keyword: String, hasPicovoiceKey: Boolean, micOk: Boolean, onSelectKeyword: (String) -&gt; Unit, onSaveKey: (String) -&gt; Unit, )</ID>
     <ID>LongMethod:VoiceTestScreen.kt$@Composable fun VoiceTestScreen(viewModel: VoiceTestViewModel = hiltViewModel())</ID>
     <ID>LongParameterList:AgentLoop.kt$AgentLoop$( private val llm: LlmClient, private val repository: SessionRepository, private val device: DeviceController, private val router: ToolRouter, private val actionGate: ActionGate, private val bus: AgentEventBus, private val userIo: UserIo, private val promptProvider: SystemPromptProvider, private val screenChangeSignals: ScreenChangeSignals, private val settings: SettingsStore, private val taskMemory: TaskMemoryRepository, private val json: Json, @AppScope private val scope: CoroutineScope, )</ID>
     <ID>LongParameterList:FakeNodeView.kt$FakeNodeView$( override val className: String? = "android.view.View", override val text: String? = null, override val contentDescription: String? = null, override val resourceId: String? = null, override val packageName: String? = "com.example.app", override val bounds: Bounds = Bounds(0, 0, 100, 50), override val isVisibleToUser: Boolean = true, override val isClickable: Boolean = false, override val isLongClickable: Boolean = false, override val isEditable: Boolean = false, override val isScrollable: Boolean = false, override val isCheckable: Boolean = false, override val isChecked: Boolean = false, override val isFocused: Boolean = false, override val isEnabled: Boolean = true, override val isPassword: Boolean = false, private val children: List&lt;FakeNodeView&gt; = emptyList(), )</ID>
@@ -177,7 +176,6 @@
     <ID>ReturnCount:Permissions.kt$Permissions$fun isAccessibilityEnabled(context: Context): Boolean</ID>
     <ID>ReturnCount:ToolRouter.kt$internal fun ScreenState.elementText(elementId: Int?): Pair&lt;String?, Boolean&gt;</ID>
     <ID>SwallowedException:DefaultAudioSessionArbiterTest.kt$DefaultAudioSessionArbiterTest$e: CancellationException</ID>
-    <ID>SwallowedException:PorcupineWakeWordDetector.kt$PorcupineWakeWordDetector$c: CancellationException</ID>
     <ID>TooGenericExceptionCaught:AgentLoop.kt$AgentLoop$t: Throwable</ID>
     <ID>TooGenericExceptionCaught:BargeInDetector.kt$BargeInDetector$t: Throwable</ID>
     <ID>TooGenericExceptionCaught:DefaultDeviceController.kt$DefaultDeviceController$t: Throwable</ID>
@@ -199,6 +197,5 @@
     <ID>TooManyFunctions:ToolRouter.kt$ToolRouter</ID>
     <ID>UnusedParameter:AgentLoop.kt$AgentLoop$sessionId: Long</ID>
     <ID>UnusedParameter:ToolRouter.kt$ToolRouter$sessionId: Long</ID>
-    <ID>UseCheckOrError:PorcupineWakeWordDetector.kt$PorcupineWakeWordDetector$throw IllegalStateException("No Picovoice AccessKey configured")</ID>
   </CurrentIssues>
 </SmellBaseline>

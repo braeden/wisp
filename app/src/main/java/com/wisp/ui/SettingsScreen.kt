@@ -48,8 +48,8 @@ import com.wisp.ui.sessions.FastModeCard
 import com.wisp.ui.sessions.ModelPickerCard
 import com.wisp.ui.sessions.SettingsViewModel
 import com.wisp.voice.android.TtsEngineChoice
-import com.wisp.voice.wake.PorcupineKeywords
 import com.wisp.voice.wake.WakeWordService
+import com.wisp.voice.wake.WakeWords
 
 /**
  * Setup + preferences + debug surface (the "Settings" tab). Absorbs the old
@@ -70,7 +70,6 @@ fun SettingsScreen(
     val ttsEngines by settingsViewModel.ttsEngines.collectAsState()
     val defaultTtsEngine by settingsViewModel.defaultTtsEngine.collectAsState()
     val wakeKeyword by settingsViewModel.wakeKeyword.collectAsState()
-    val hasPicovoiceKey by settingsViewModel.hasPicovoiceKey.collectAsState()
 
     // Bumped on every ON_RESUME so permission rows re-read after the user returns
     // from a Settings deep-link.
@@ -142,10 +141,8 @@ fun SettingsScreen(
             )
             WakeWordCard(
                 keyword = wakeKeyword,
-                hasPicovoiceKey = hasPicovoiceKey,
                 micOk = micOk,
                 onSelectKeyword = settingsViewModel::setWakeKeyword,
-                onSaveKey = settingsViewModel::savePicovoiceKey,
             )
 
             // --- Setup: one-time provisioning ----------------------------------
@@ -382,23 +379,20 @@ private fun TtsEngineCard(
 }
 
 /**
- * Wake-word controls: built-in keyword picker, the Picovoice AccessKey field
- * (stored encrypted, like the Anthropic key), and the arm/disarm toggle for
- * [WakeWordService]. Saying the keyword opens the overlay already listening.
+ * Wake-word controls: model picker (openWakeWord pretrained models we ship as
+ * assets) and the arm/disarm toggle for [WakeWordService]. Saying the keyword
+ * opens the overlay already listening.
  */
 @Composable
 private fun WakeWordCard(
     keyword: String,
-    hasPicovoiceKey: Boolean,
     micOk: Boolean,
     onSelectKeyword: (String) -> Unit,
-    onSaveKey: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val running by WakeWordService.running.collectAsState()
     var open by remember { mutableStateOf(false) }
-    var keyField by remember { mutableStateOf("") }
-    var justSaved by remember { mutableStateOf(false) }
+    val selectedLabel = WakeWords.byName(keyword)?.label ?: keyword
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -421,19 +415,14 @@ private fun WakeWordCard(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !running,
                 ) {
-                    Text(
-                        stringResource(
-                            R.string.wake_keyword_label,
-                            PorcupineKeywords.displayName(keyword),
-                        ),
-                    )
+                    Text(stringResource(R.string.wake_keyword_label, selectedLabel))
                 }
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                    PorcupineKeywords.allNames().forEach { name ->
+                    WakeWords.available().forEach { model ->
                         DropdownMenuItem(
-                            text = { Text(PorcupineKeywords.displayName(name)) },
+                            text = { Text(model.label) },
                             onClick = {
-                                onSelectKeyword(name)
+                                onSelectKeyword(model.name)
                                 open = false
                             },
                         )
@@ -441,53 +430,11 @@ private fun WakeWordCard(
                 }
             }
 
-            if (!hasPicovoiceKey) {
-                Text(
-                    text = stringResource(R.string.wake_needs_key),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            OutlinedTextField(
-                value = keyField,
-                onValueChange = {
-                    keyField = it
-                    justSaved = false
-                },
-                label = { Text(stringResource(R.string.picovoice_key_hint)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        onSaveKey(keyField)
-                        keyField = ""
-                        justSaved = true
-                    },
-                    enabled = keyField.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.api_key_save))
-                }
-                if (justSaved) {
-                    Text(
-                        text = stringResource(R.string.api_key_saved),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-
             Button(
                 onClick = {
                     if (running) WakeWordService.stop(context) else WakeWordService.start(context)
                 },
-                enabled = micOk && hasPicovoiceKey,
+                enabled = micOk,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(

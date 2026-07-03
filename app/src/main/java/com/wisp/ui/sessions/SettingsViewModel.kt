@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wisp.data.AgentModel
-import com.wisp.data.SecretStore
 import com.wisp.data.SettingsStore
 import com.wisp.voice.android.TtsEngineChoice
 import com.wisp.voice.android.TtsEngines
@@ -18,8 +17,7 @@ import javax.inject.Inject
 
 /**
  * Settings-tab state: the persisted Fast-mode toggle, model selection, TTS
- * engine choice (discovered on-device engines), wake-word keyword, and whether
- * a Picovoice AccessKey is stored (the key itself never leaves [SecretStore]).
+ * engine choice (discovered on-device engines), and the wake-word model name.
  */
 @HiltViewModel
 class SettingsViewModel
@@ -27,7 +25,6 @@ class SettingsViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val settings: SettingsStore,
-        private val secrets: SecretStore,
     ) : ViewModel() {
         val fastMode: StateFlow<Boolean> = settings.fastMode
 
@@ -66,13 +63,4 @@ class SettingsViewModel
         val wakeKeyword: StateFlow<String> = settings.wakeKeyword
 
         fun setWakeKeyword(keyword: String) = settings.setWakeKeyword(keyword)
-
-        private val _hasPicovoiceKey = MutableStateFlow(secrets.hasPicovoiceKey())
-
-        val hasPicovoiceKey: StateFlow<Boolean> = _hasPicovoiceKey.asStateFlow()
-
-        fun savePicovoiceKey(value: String) {
-            secrets.setPicovoiceKey(value)
-            _hasPicovoiceKey.value = secrets.hasPicovoiceKey()
-        }
     }
