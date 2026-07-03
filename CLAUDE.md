@@ -378,9 +378,31 @@ Feasibility confirmed; decisions locked (`.claude/phases/phase-00-decisions.md`)
   releases installable meanwhile); uninstall the old `com.assist` app from
   devices — `com.wisp` is a fresh install with fresh data.
 
+### Phase 09 — Wake word (Porcupine) + TTS engine picker ✅ (device checkpoint pending)
+- **TTS engine selection:** `voice/android/TtsEngines.discover()` lists installed
+  engines (`TextToSpeech.getEngines`); Settings "Speech engine" dropdown persists
+  to `SettingsStore.ttsEngine`; `AndroidTtsEngine` re-reads per utterance and
+  swaps in a fresh `TextToSpeech(context, listener, engine)` (the supported
+  replacement for deprecated `setEngineByPackageName`).
+- **`voice/wake/PorcupineWakeWordDetector`** (`ai.picovoice:porcupine-android`
+  3.0.1) implements the seam's `detections(): Flow<WakeEvent>`; holds the shared
+  `AudioSessionArbiter` at `WAKE_WORD` (lowest) priority — ask/dictation/barge-in
+  preempt instantly; it stops Porcupine and re-arms when the mic frees.
+  `WakeWordService` (**microphone-type FGS**, persistent mic indicator) collects
+  detections (`collectLatest` on the keyword pref — changes re-arm live);
+  detection → `OverlayService.startListening` (same voice-first path as
+  "Start a task"). Settings "Voice" card: built-in keyword picker, encrypted
+  Picovoice AccessKey field (`SecretStore.getPicovoiceKey`), arm/disarm toggle.
+- **API-shape fix:** dropped `SettingsStore.getAgentModel()`-style methods — the
+  JVM getter clashed with the `agentModel: StateFlow` property getter and broke
+  MockK; snapshots read `<flow>.value`.
+- **Verified:** 173 unit tests + all linters green; emulator shows the Voice
+  section, discovery finds the Google engine, dropdown works, no Hilt/runtime
+  crash. **Human checkpoint:** free Picovoice AccessKey (console.picovoice.ai)
+  + real-device mic for live detection; custom "Hey Wisp" needs a
+  Console-trained `.ppn` asset.
+
 ### Next
-- **Phase 09 (wake word)** — Porcupine/openWakeWord `WakeWordDetector` in an FGS,
-  coordinated via the shared `AudioSessionArbiter`.
 - **Follow-ups:** unify `AgentService`+`OverlayService` into one coordinated FGS;
   `SessionSteering` barge-in/budget wiring; `AgentService` optional existing-
   `sessionId` for one-tap session resume.
