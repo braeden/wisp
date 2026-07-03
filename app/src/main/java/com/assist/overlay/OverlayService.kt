@@ -12,8 +12,8 @@ import android.os.IBinder
 import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.NotificationCompat
@@ -32,6 +32,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -51,7 +53,6 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class OverlayService : Service() {
-
     @Inject lateinit var controller: OverlayController
 
     /** Service-lifetime scope for record/dictate flows (survives recomposition). */
@@ -66,20 +67,37 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.i(TAG, "overlay service onCreate")
         ensureChannel()
         startForegroundInternal()
         addOverlay()
+        // Focusability follows expansion: the expanded panel is an interaction
+        // surface (typing must raise the IME, which needs window focus); the
+        // collapsed bubble must never steal input from the driven app. Collected
+        // here as a plain flow — not a composition side-effect — so it works
+        // regardless of the overlay window's Compose effect dispatching.
+        serviceScope.launch {
+            controller.uiState
+                .map { it.expanded }
+                .distinctUntilChanged()
+                .collect { expanded -> setFocusable(expanded) }
+        }
         _running.value = true
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         when (intent?.action) {
             ACTION_STOP -> stopSelf()
             // Voice-first entry ("Start a task"): the overlay comes up already
             // listening; the captured instruction runs as a task.
-            ACTION_RECORD -> recordAndRun(
-                newSession = intent.getBooleanExtra(EXTRA_NEW_SESSION, false),
-            )
+            ACTION_RECORD ->
+                recordAndRun(
+                    newSession = intent.getBooleanExtra(EXTRA_NEW_SESSION, false),
+                )
         }
         return START_STICKY
     }
@@ -119,73 +137,75 @@ class OverlayService : Service() {
         val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         windowManager = wm
 
-        val layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            BASE_FLAGS,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 24
-            y = 160
-        }
+        val layoutParams =
+            WindowManager
+                .LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    BASE_FLAGS,
+                    PixelFormat.TRANSLUCENT,
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.START
+                    x = 24
+                    y = 160
+                }
         params = layoutParams
 
-        val owner = OverlayLifecycleOwner().apply {
-            onCreate()
-            onResume()
-        }
+        val owner =
+            OverlayLifecycleOwner().apply {
+                onCreate()
+                onResume()
+            }
         lifecycleOwner = owner
 
-        val view = ComposeView(this).apply {
-            setViewTreeLifecycleOwner(owner)
-            setViewTreeViewModelStoreOwner(owner)
-            setViewTreeSavedStateRegistryOwner(owner)
-            setContent {
-                AssistTheme {
-                    val state by controller.uiState.collectAsState()
-                    val sessions by controller.sessions.collectAsState()
-                    val dictating by controller.dictating.collectAsState()
-                    val dictationText by controller.dictationText.collectAsState()
-                    OverlayRoot(
-                        state = state,
-                        sessions = sessions,
-                        dictating = dictating,
-                        dictationText = dictationText,
-                        onToggleExpanded = controller::toggleExpanded,
-                        onDrag = ::moveBy,
-                        onInterrupt = controller::interrupt,
-                        onRecordNewMessage = { recordAndRun(newSession = false) },
-                        onCancelDictate = controller::cancelDictation,
-                        onNewSession = controller::newSession,
-                        onSwitchSession = controller::switchSession,
-                        onSubmitReply = { text ->
-                            if (controller.isAgentRunning) {
-                                // A task is in flight: the text answers/steers it.
-                                controller.submitReply(text)
-                            } else {
-                                // Idle: the text is a new instruction — run it in
-                                // the currently-selected session so switching
-                                // sessions actually continues that conversation.
-                                ContextCompat.startForegroundService(
-                                    this@OverlayService,
-                                    AgentService.runIntent(
+        val view =
+            ComposeView(this).apply {
+                setViewTreeLifecycleOwner(owner)
+                setViewTreeViewModelStoreOwner(owner)
+                setViewTreeSavedStateRegistryOwner(owner)
+                setContent {
+                    AssistTheme {
+                        val state by controller.uiState.collectAsState()
+                        val sessions by controller.sessions.collectAsState()
+                        val dictating by controller.dictating.collectAsState()
+                        val dictationText by controller.dictationText.collectAsState()
+                        OverlayRoot(
+                            state = state,
+                            sessions = sessions,
+                            dictating = dictating,
+                            dictationText = dictationText,
+                            onToggleExpanded = controller::toggleExpanded,
+                            onDrag = ::moveBy,
+                            onInterrupt = controller::interrupt,
+                            onRecordNewMessage = { recordAndRun(newSession = false) },
+                            onCancelDictate = controller::cancelDictation,
+                            onNewSession = controller::newSession,
+                            onSwitchSession = controller::switchSession,
+                            onSubmitReply = { text ->
+                                if (controller.isAgentRunning) {
+                                    // A task is in flight: the text answers/steers it.
+                                    controller.submitReply(text)
+                                } else {
+                                    // Idle: the text is a new instruction — run it in
+                                    // the currently-selected session so switching
+                                    // sessions actually continues that conversation.
+                                    ContextCompat.startForegroundService(
                                         this@OverlayService,
-                                        text,
-                                        controller.currentSession,
-                                    ),
-                                )
-                            }
-                            setFocusable(false)
-                        },
-                        onDictate = controller::dictate,
-                        onSetFocusable = ::setFocusable,
-                        onStop = { stopSelf() },
-                    )
+                                        AgentService.runIntent(
+                                            this@OverlayService,
+                                            text,
+                                            controller.currentSession,
+                                        ),
+                                    )
+                                }
+                            },
+                            onDictate = controller::dictate,
+                            onStop = { stopSelf() },
+                        )
+                    }
                 }
             }
-        }
         composeView = view
 
         // Re-clamp whenever the content resizes (e.g. expand/collapse) so a panel
@@ -243,12 +263,14 @@ class OverlayService : Service() {
      * typed reply, then reverted.
      */
     private fun setFocusable(focusable: Boolean) {
+        Log.i(TAG, "setFocusable($focusable)")
         val p = params ?: return
         val view = composeView ?: return
         if (focusable) {
             p.flags = BASE_FLAGS and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
-            p.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
-                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            // No STATE_VISIBLE: the IME should come up when the field is tapped
+            // (normal focus path), not the moment the panel expands.
+            p.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         } else {
             p.flags = BASE_FLAGS
             p.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
@@ -259,14 +281,20 @@ class OverlayService : Service() {
     // --- Foreground notification -------------------------------------------
 
     private fun startForegroundInternal() {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(R.string.overlay_notification_text))
-            .setSmallIcon(android.R.drawable.ic_menu_view)
-            .setOngoing(true)
-            .build()
+        val notification =
+            NotificationCompat
+                .Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(getString(R.string.overlay_notification_text))
+                .setSmallIcon(android.R.drawable.ic_menu_view)
+                .setOngoing(true)
+                .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
@@ -276,7 +304,11 @@ class OverlayService : Service() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (manager.getNotificationChannel(CHANNEL_ID) == null) {
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Assist overlay", NotificationManager.IMPORTANCE_LOW),
+                NotificationChannel(
+                    CHANNEL_ID,
+                    "Assist overlay",
+                    NotificationManager.IMPORTANCE_LOW,
+                ),
             )
         }
     }
@@ -300,7 +332,10 @@ class OverlayService : Service() {
          * listening immediately. [newSession] starts a fresh session (the
          * "Start a task" button); false continues the current one.
          */
-        fun startListening(context: Context, newSession: Boolean = true) {
+        fun startListening(
+            context: Context,
+            newSession: Boolean = true,
+        ) {
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, OverlayService::class.java)
@@ -316,7 +351,10 @@ class OverlayService : Service() {
 
         /** Start the overlay as a foreground service. */
         fun start(context: Context) {
-            ContextCompat.startForegroundService(context, Intent(context, OverlayService::class.java))
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, OverlayService::class.java),
+            )
         }
 
         /** Stop the overlay. */

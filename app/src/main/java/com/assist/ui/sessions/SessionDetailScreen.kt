@@ -2,6 +2,7 @@ package com.assist.ui.sessions
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,8 +16,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -41,17 +42,21 @@ fun SessionDetailScreen(
 
     // No inner Scaffold — renders inside MainActivity's Scaffold (see SessionsScreen).
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
+        // Breathing room after the last transcript item.
+        contentPadding = PaddingValues(bottom = 24.dp),
     ) {
         item {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                // Back leads (standard navigation position).
+                TextButton(onClick = onBack) { Text("← Back") }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         state.title,
@@ -59,14 +64,18 @@ fun SessionDetailScreen(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val sub = listOf(state.status, modelLabel(state.model))
-                        .filter { it.isNotBlank() }
-                        .joinToString(" · ")
+                    val sub =
+                        listOf(state.status, modelLabel(state.model))
+                            .filter { it.isNotBlank() }
+                            .joinToString(" · ")
                     if (sub.isNotBlank()) {
-                        Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            sub,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
-                TextButton(onClick = onBack) { Text("Back") }
             }
         }
 
@@ -103,11 +112,12 @@ private fun ContextPanel(panel: ContextPanelUi) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Context & cost", style = MaterialTheme.typography.titleSmall)
-            val pct = if (panel.windowTokens > 0) {
-                (panel.usedTokens.toFloat() / panel.windowTokens).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
+            val pct =
+                if (panel.windowTokens > 0) {
+                    (panel.usedTokens.toFloat() / panel.windowTokens).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
             Text(
                 "${formatTokens(panel.usedTokens)} / ${formatTokens(panel.windowTokens)} tokens" +
                     " · ${panel.screenshotCount} screenshots",
@@ -121,7 +131,11 @@ private fun ContextPanel(panel: ContextPanelUi) {
             Text("Total ${formatUsd(panel.costUsd)}", style = MaterialTheme.typography.bodyMedium)
             panel.perModel.forEach { m ->
                 Text(
-                    "  ${m.model}: ${formatUsd(m.costUsd)}  (${formatTokens(m.inputTokens)} in / ${formatTokens(m.outputTokens)} out · ${m.turns} turns)",
+                    "  ${m.model}: ${formatUsd(
+                        m.costUsd,
+                    )}  (${formatTokens(
+                        m.inputTokens,
+                    )} in / ${formatTokens(m.outputTokens)} out · ${m.turns} turns)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -134,36 +148,40 @@ private fun ContextPanel(panel: ContextPanelUi) {
 private fun TranscriptItem(item: TranscriptItemUi) {
     when (item) {
         is TranscriptItemUi.Message -> MessageBubble(item)
-        is TranscriptItemUi.Thinking -> Text(
-            "💭 ${item.preview}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
+        is TranscriptItemUi.Thinking ->
+            Text(
+                "💭 ${item.preview}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
         is TranscriptItemUi.ToolChip -> ToolChip(item)
-        is TranscriptItemUi.Screenshot -> Text(
-            if (item.dropped) "🖼 screenshot (dropped to save context)" else "🖼 screenshot",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
+        is TranscriptItemUi.Screenshot ->
+            Text(
+                if (item.dropped) "🖼 screenshot (dropped to save context)" else "🖼 screenshot",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
     }
 }
 
 @Composable
 private fun MessageBubble(item: TranscriptItemUi.Message) {
-    val label = when (item.role) {
-        TranscriptRole.USER -> "You"
-        TranscriptRole.ASSISTANT -> "Assist"
-        TranscriptRole.SYSTEM -> "System (steering)"
-        TranscriptRole.SYSTEM_NOTE -> "System note"
-        TranscriptRole.TOOL_RESULT -> "Tool result"
-    }
-    val container = when (item.role) {
-        TranscriptRole.ASSISTANT -> MaterialTheme.colorScheme.primaryContainer
-        TranscriptRole.USER -> MaterialTheme.colorScheme.secondaryContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
+    val label =
+        when (item.role) {
+            TranscriptRole.USER -> "You"
+            TranscriptRole.ASSISTANT -> "Assist"
+            TranscriptRole.SYSTEM -> "System (steering)"
+            TranscriptRole.SYSTEM_NOTE -> "System note"
+            TranscriptRole.TOOL_RESULT -> "Tool result"
+        }
+    val container =
+        when (item.role) {
+            TranscriptRole.ASSISTANT -> MaterialTheme.colorScheme.primaryContainer
+            TranscriptRole.USER -> MaterialTheme.colorScheme.secondaryContainer
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = container),
@@ -196,7 +214,10 @@ private fun ToolChip(item: TranscriptItemUi.ToolChip) {
             if (item.argsJson.isNotBlank() && item.argsJson != "{}") {
                 Text(
                     item.argsJson,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                        ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis,

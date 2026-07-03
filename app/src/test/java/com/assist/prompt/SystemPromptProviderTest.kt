@@ -6,11 +6,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SystemPromptProviderTest {
-
     private val provider: SystemPromptProvider = DefaultSystemPromptProvider()
 
-    private fun coreText(): String =
-        provider.system().first { it.cacheable }.text
+    private fun coreText(): String = provider.system().first { it.cacheable }.text
 
     @Test
     fun `system returns a cacheable stable core as the first block`() {
@@ -75,7 +73,9 @@ class SystemPromptProviderTest {
         assertTrue(core.contains("/memories"))
         assertTrue(core.contains("/memories/tasks/"))
         val lower = core.lowercase()
-        assertTrue("check memory first", lower.contains("check memory first"))
+        // Recall is pushed into the first user turn; the core must forbid
+        // speculative browsing rather than mandate a memory check.
+        assertTrue("no speculative browse", lower.contains("do not browse memory speculatively"))
         assertTrue("record a recipe", lower.contains("record a recipe"))
         // recipe anatomy
         listOf("entry point", "steps", "gotchas", "verification")
@@ -84,15 +84,16 @@ class SystemPromptProviderTest {
 
     @Test
     fun `dynamic tail renders provided device info notes and time`() {
-        val ctx = PromptContext(
-            deviceModel = "Pixel 7 Pro",
-            androidVersion = "Android 15",
-            screenSize = "1440x3120",
-            locale = "en-US",
-            currentTime = "2026-07-02 10:00",
-            sessionNotes = listOf("user prefers metric units"),
-            installedAppHints = listOf("Gmail", "Spotify"),
-        )
+        val ctx =
+            PromptContext(
+                deviceModel = "Pixel 7 Pro",
+                androidVersion = "Android 15",
+                screenSize = "1440x3120",
+                locale = "en-US",
+                currentTime = "2026-07-02 10:00",
+                sessionNotes = listOf("user prefers metric units"),
+                installedAppHints = listOf("Gmail", "Spotify"),
+            )
         val tail = provider.system(ctx).last { !it.cacheable }.text
         assertTrue(tail.contains("Pixel 7 Pro"))
         assertTrue(tail.contains("Android 15"))

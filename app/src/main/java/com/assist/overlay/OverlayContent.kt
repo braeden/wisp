@@ -11,15 +11,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -39,27 +40,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.assist.data.SessionEntity
+import kotlinx.coroutines.launch
 
 /**
  * Root of the overlay content. Renders the collapsed [Bubble] or the expanded
@@ -85,7 +84,6 @@ fun OverlayRoot(
     onSwitchSession: (Long) -> Unit,
     onSubmitReply: (String) -> Unit,
     onDictate: suspend () -> String?,
-    onSetFocusable: (Boolean) -> Unit,
     onStop: () -> Unit,
 ) {
     // "Listening" is shown iff the mic is genuinely open: dictation overrides the
@@ -105,7 +103,6 @@ fun OverlayRoot(
                 onSwitchSession = onSwitchSession,
                 onSubmitReply = onSubmitReply,
                 onDictate = onDictate,
-                onSetFocusable = onSetFocusable,
                 onStop = onStop,
             )
         } else {
@@ -164,12 +161,13 @@ private fun Bubble(
         shape = RoundedCornerShape(24.dp),
         color = phaseColor(state.phase),
         shadowElevation = 6.dp,
-        modifier = Modifier.pointerInput(Unit) {
-            detectDragGestures { change, delta ->
-                change.consume()
-                onDrag(delta)
-            }
-        },
+        modifier =
+            Modifier.pointerInput(Unit) {
+                detectDragGestures { change, delta ->
+                    change.consume()
+                    onDrag(delta)
+                }
+            },
     ) {
         Row(
             modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
@@ -190,10 +188,11 @@ private fun Bubble(
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(Color.White),
+                        modifier =
+                            Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
                     )
                 }
                 Text(
@@ -247,7 +246,6 @@ private fun Panel(
     onSwitchSession: (Long) -> Unit,
     onSubmitReply: (String) -> Unit,
     onDictate: suspend () -> String?,
-    onSetFocusable: (Boolean) -> Unit,
     onStop: () -> Unit,
 ) {
     Card(
@@ -259,21 +257,22 @@ private fun Panel(
             // Header: drag handle + tap-to-collapse, with – (collapse) and ✕ (hide).
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        detectDragGestures { change, delta ->
-                            change.consume()
-                            onDrag(delta)
-                        }
-                    }
-                    .pointerInput(Unit) { detectTapGestures(onTap = { onCollapse() }) },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, delta ->
+                                change.consume()
+                                onDrag(delta)
+                            }
+                        }.pointerInput(Unit) { detectTapGestures(onTap = { onCollapse() }) },
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(phaseColor(state.phase)),
+                    modifier =
+                        Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(phaseColor(state.phase)),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
@@ -310,9 +309,10 @@ private fun Panel(
 
             // Scrollable transcript region.
             Column(
-                modifier = Modifier
-                    .heightInBounded()
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .heightInBounded()
+                        .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 if (state.isThinking && state.assistantText.isBlank()) {
@@ -355,7 +355,6 @@ private fun Panel(
                 onDictate = onDictate,
                 onCancelDictate = onCancelDictate,
                 onInterrupt = onInterrupt,
-                onSetFocusable = onSetFocusable,
             )
 
             Spacer(Modifier.height(6.dp))
@@ -382,10 +381,11 @@ private fun Hud(hud: HudState?) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         LinearProgressIndicator(
             progress = { hud.contextFraction },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp)),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
@@ -402,7 +402,10 @@ private fun Hud(hud: HudState?) {
 
 @Composable
 private fun ThinkingRow() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
         Text(
             text = "Thinking…",
@@ -414,11 +417,12 @@ private fun ThinkingRow() {
 
 @Composable
 private fun ToolChipRow(chip: ToolChip) {
-    val (tint, glyph) = when (chip.status) {
-        ToolStatus.RUNNING -> MaterialTheme.colorScheme.primary to "…"
-        ToolStatus.SUCCESS -> Color(0xFF2E7D32) to "✓"
-        ToolStatus.FAILURE -> MaterialTheme.colorScheme.error to "✗"
-    }
+    val (tint, glyph) =
+        when (chip.status) {
+            ToolStatus.RUNNING -> MaterialTheme.colorScheme.primary to "…"
+            ToolStatus.SUCCESS -> Color(0xFF2E7D32) to "✓"
+            ToolStatus.FAILURE -> MaterialTheme.colorScheme.error to "✗"
+        }
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -452,7 +456,10 @@ private fun ToolChipRow(chip: ToolChip) {
 }
 
 @Composable
-private fun ConfirmationRow(prompt: ConfirmationPrompt, onSubmitReply: (String) -> Unit) {
+private fun ConfirmationRow(
+    prompt: ConfirmationPrompt,
+    onSubmitReply: (String) -> Unit,
+) {
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -488,50 +495,47 @@ private fun ReplyBar(
     onDictate: suspend () -> String?,
     onCancelDictate: () -> Unit,
     onInterrupt: () -> Unit,
-    onSetFocusable: (Boolean) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    // The window is focusable whenever the panel is expanded (see OverlayService),
+    // so this is an ordinary text field: tap → focus → IME. No focus gymnastics.
     var text by remember { mutableStateOf("") }
-    var inputActive by remember { mutableStateOf(false) }
 
     fun submit() {
         if (text.isBlank()) return
         onSubmitReply(text)
         text = ""
-        inputActive = false
-        onSetFocusable(false)
-    }
-
-    LaunchedEffect(inputActive) {
-        if (inputActive) runCatching { focusRequester.requestFocus() }
+        focusManager.clearFocus()
     }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Box(modifier = Modifier.weight(1f)) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                placeholder = { Text("Message…", style = MaterialTheme.typography.bodySmall) },
-                textStyle = MaterialTheme.typography.bodyMedium,
-                trailingIcon = {
-                    when {
-                        // Hot mic: tap again to cancel the capture.
-                        dictating -> IconButton(onClick = onCancelDictate) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            placeholder = { Text("Message…", style = MaterialTheme.typography.bodySmall) },
+            textStyle = MaterialTheme.typography.bodyMedium,
+            trailingIcon = {
+                when {
+                    // Hot mic: tap again to cancel the capture.
+                    dictating ->
+                        IconButton(onClick = onCancelDictate) {
                             Icon(
                                 MicIcon,
                                 contentDescription = "Stop recording",
                                 tint = RecordingRed,
                             )
                         }
-                        text.isNotBlank() -> IconButton(onClick = { submit() }) {
+                    text.isNotBlank() ->
+                        IconButton(onClick = { submit() }) {
                             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                         }
-                        else -> IconButton(onClick = {
+                    else ->
+                        IconButton(onClick = {
                             scope.launch {
                                 val spoken = onDictate()
                                 if (!spoken.isNullOrBlank()) {
@@ -539,30 +543,12 @@ private fun ReplyBar(
                                 }
                             }
                         }) { Icon(MicIcon, contentDescription = "Dictate") }
-                    }
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { submit() }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester),
-            )
-            if (!inputActive) {
-                // Tap-catcher over the field (but not the trailing icon): the first
-                // tap flips the window focusable, then focus + IME follow.
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .padding(end = 48.dp)
-                        .pointerInput(Unit) {
-                            detectTapGestures(onTap = {
-                                inputActive = true
-                                onSetFocusable(true)
-                            })
-                        },
-                )
-            }
-        }
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = { submit() }),
+            modifier = Modifier.weight(1f),
+        )
         // Stop is live only while a task is in flight; dimmed once the agent is done.
         IconButton(onClick = onInterrupt, enabled = busy) {
             StopGlyph(
@@ -598,9 +584,10 @@ private fun SessionsRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { listOpen = !listOpen },
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clickable { listOpen = !listOpen },
             )
             IconButton(onClick = onNewSession, modifier = Modifier.size(28.dp)) {
                 Icon(
@@ -638,10 +625,11 @@ private fun SessionsRow(
 @Composable
 private fun StopGlyph(color: Color = Color.White) {
     Box(
-        modifier = Modifier
-            .size(12.dp)
-            .clip(RoundedCornerShape(2.dp))
-            .background(color),
+        modifier =
+            Modifier
+                .size(12.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color),
     )
 }
 
@@ -649,29 +637,35 @@ private fun StopGlyph(color: Color = Color.White) {
 private val RecordingRed = Color(0xFFD32F2F)
 
 @Composable
-private fun Modifier.heightInBounded(): Modifier = this.then(Modifier.height(220.dp))
+private fun Modifier.heightInBounded(): Modifier =
+    // Grow with content up to a cap — a fixed height left a large blank block
+    // in the panel when the transcript was empty.
+    this.then(Modifier.heightIn(max = 220.dp))
 
 @Composable
-private fun phaseColor(phase: AgentPhase): Color = when (phase) {
-    // Deep purple, dark enough that the bubble's white text/icons stay readable
-    // regardless of the dynamic Material theme.
-    AgentPhase.IDLE -> Color(0xFF4A148C)
-    AgentPhase.LISTENING -> Color(0xFF6A1B9A)
-    AgentPhase.THINKING -> Color(0xFF1565C0)
-    AgentPhase.SPEAKING -> Color(0xFF00838F)
-    AgentPhase.ACTING -> Color(0xFFEF6C00)
-}
+private fun phaseColor(phase: AgentPhase): Color =
+    when (phase) {
+        // Deep purple, dark enough that the bubble's white text/icons stay readable
+        // regardless of the dynamic Material theme.
+        AgentPhase.IDLE -> Color(0xFF4A148C)
+        AgentPhase.LISTENING -> Color(0xFF6A1B9A)
+        AgentPhase.THINKING -> Color(0xFF1565C0)
+        AgentPhase.SPEAKING -> Color(0xFF00838F)
+        AgentPhase.ACTING -> Color(0xFFEF6C00)
+    }
 
-private fun phaseLabel(phase: AgentPhase): String = when (phase) {
-    AgentPhase.IDLE -> "Assist"
-    AgentPhase.LISTENING -> "Listening"
-    AgentPhase.THINKING -> "Thinking"
-    AgentPhase.SPEAKING -> "Speaking"
-    AgentPhase.ACTING -> "Acting"
-}
+private fun phaseLabel(phase: AgentPhase): String =
+    when (phase) {
+        AgentPhase.IDLE -> "Assist"
+        AgentPhase.LISTENING -> "Listening"
+        AgentPhase.THINKING -> "Thinking"
+        AgentPhase.SPEAKING -> "Speaking"
+        AgentPhase.ACTING -> "Acting"
+    }
 
-private fun formatTokens(tokens: Int): String = when {
-    tokens >= 1_000_000 -> "%.1fM".format(tokens / 1_000_000.0)
-    tokens >= 1_000 -> "%.0fk".format(tokens / 1_000.0)
-    else -> tokens.toString()
-}
+private fun formatTokens(tokens: Int): String =
+    when {
+        tokens >= 1_000_000 -> "%.1fM".format(tokens / 1_000_000.0)
+        tokens >= 1_000 -> "%.0fk".format(tokens / 1_000.0)
+        else -> tokens.toString()
+    }

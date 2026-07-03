@@ -17,11 +17,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -44,9 +44,10 @@ fun RecipesScreen(
 
     // No inner Scaffold — renders inside MainActivity's Scaffold (see SessionsScreen).
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -94,8 +95,15 @@ fun RecipesScreen(
             text = {
                 Text(
                     content.markdown,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                        ),
+                    modifier =
+                        Modifier
+                            .heightIn(
+                                max = 360.dp,
+                            ).verticalScroll(rememberScrollState()),
                 )
             },
             confirmButton = { TextButton(onClick = viewModel::dismissContent) { Text("Close") } },
@@ -125,13 +133,18 @@ private fun RecipeCard(
     onDelete: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        // Same primitives as SessionCard: tight bottom padding because the
+        // TextButton row below carries its own touch-target padding.
+        Column(
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 2.dp),
+        ) {
             Text(row.title, style = MaterialTheme.typography.titleMedium)
-            val meta = buildList {
-                row.appPackage?.let { add(it) }
-                add("used ${row.useCount}×")
-                add(formatRelativeTime(row.lastUsedAt))
-            }.joinToString(" · ")
+            val meta =
+                buildList {
+                    row.appPackage?.let { add(it) }
+                    add("used ${row.useCount}×")
+                    add(formatRelativeTime(row.lastUsedAt))
+                }.joinToString(" · ")
             Text(
                 meta,
                 style = MaterialTheme.typography.bodySmall,
@@ -143,7 +156,7 @@ private fun RecipeCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 TextButton(onClick = onView) { Text("View") }

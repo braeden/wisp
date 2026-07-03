@@ -21,7 +21,6 @@ import com.assist.llm.SystemBlock
  * the live tail.
  */
 interface SystemPromptProvider {
-
     /** Monotonic version of the stable core; record per session (see phase-05). */
     val version: Int
 
@@ -37,7 +36,7 @@ interface SystemPromptProvider {
          * Bump when the stable core text changes so sessions can record which
          * prompt they ran under and the cache is not silently reused across edits.
          */
-        const val PROMPT_VERSION: Int = 1
+        const val PROMPT_VERSION: Int = 2
     }
 }
 
