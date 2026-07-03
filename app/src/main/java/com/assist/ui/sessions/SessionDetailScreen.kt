@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.assist.data.AgentModel
 import com.assist.data.TranscriptRole
 
 /**
@@ -60,13 +61,24 @@ fun SessionDetailScreen(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        val sub = listOf(state.status, state.model).filter { it.isNotBlank() }.joinToString(" · ")
+                        val sub = listOf(state.status, modelLabel(state.model))
+                            .filter { it.isNotBlank() }
+                            .joinToString(" · ")
                         if (sub.isNotBlank()) {
                             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     TextButton(onClick = onBack) { Text("Back") }
                 }
+            }
+
+            // Mid-session model switcher: a running loop re-reads the session's
+            // model every step, so this takes effect on the next request.
+            item {
+                ModelChips(
+                    selected = AgentModel.fromModelId(state.model),
+                    onSelect = viewModel::setModel,
+                )
             }
 
             state.context?.let { item { ContextPanel(it) } }

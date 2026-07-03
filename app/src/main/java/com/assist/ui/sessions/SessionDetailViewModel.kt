@@ -3,6 +3,7 @@ package com.assist.ui.sessions
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.assist.data.AgentModel
 import com.assist.data.ContextTracker
 import com.assist.data.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,15 +38,25 @@ class SessionDetailViewModel @Inject constructor(
         viewModelScope.launch {
             // Any message change re-decodes the transcript; the session row flow
             // supplies the header.
-            repository.observeMessages(sessionId).collectLatest {
-                val session = repository.getSession(sessionId)
-                val transcript = repository.getTranscript(sessionId)
-                val toolCalls = repository.listToolCalls(sessionId)
-                val usage = repository.aggregateUsage(sessionId)
-                val ctx = runCatching { contextTracker.contextStatus(sessionId) }.getOrNull()
-                _state.value = SessionDetailReducer.reduce(session, transcript, toolCalls, usage, ctx)
-            }
+            repository.observeMessages(sessionId).collectLatest { refresh() }
         }
+    }
+
+    /** Switch this session's model; a running loop picks it up on its next step. */
+    fun setModel(model: AgentModel) {
+        viewModelScope.launch {
+            repository.setSessionModel(sessionId, model.modelId)
+            refresh()
+        }
+    }
+
+    private suspend fun refresh() {
+        val session = repository.getSession(sessionId)
+        val transcript = repository.getTranscript(sessionId)
+        val toolCalls = repository.listToolCalls(sessionId)
+        val usage = repository.aggregateUsage(sessionId)
+        val ctx = runCatching { contextTracker.contextStatus(sessionId) }.getOrNull()
+        _state.value = SessionDetailReducer.reduce(session, transcript, toolCalls, usage, ctx)
     }
 
     companion object {

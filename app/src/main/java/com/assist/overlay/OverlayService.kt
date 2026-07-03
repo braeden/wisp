@@ -113,9 +113,11 @@ class OverlayService : Service() {
                     val uiScope = rememberCoroutineScope()
                     val state by controller.uiState.collectAsState()
                     val sessions by controller.sessions.collectAsState()
+                    val dictating by controller.dictating.collectAsState()
                     OverlayRoot(
                         state = state,
                         sessions = sessions,
+                        dictating = dictating,
                         onToggleExpanded = controller::toggleExpanded,
                         onDrag = ::moveBy,
                         onInterrupt = controller::interrupt,
@@ -134,7 +136,6 @@ class OverlayService : Service() {
                         },
                         onNewSession = controller::newSession,
                         onSwitchSession = controller::switchSession,
-                        onCompact = controller::compactNow,
                         onSubmitReply = { text ->
                             controller.submitReply(text)
                             setFocusable(false)

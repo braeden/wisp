@@ -1,6 +1,7 @@
 package com.assist.overlay
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,13 +74,13 @@ import com.assist.data.SessionEntity
 fun OverlayRoot(
     state: OverlayUiState,
     sessions: List<SessionEntity>,
+    dictating: Boolean,
     onToggleExpanded: () -> Unit,
     onDrag: (Offset) -> Unit,
     onInterrupt: () -> Unit,
     onRecordNewMessage: () -> Unit,
     onNewSession: () -> Unit,
     onSwitchSession: (Long) -> Unit,
-    onCompact: () -> Unit,
     onSubmitReply: (String) -> Unit,
     onDictate: suspend () -> String?,
     onSetFocusable: (Boolean) -> Unit,
@@ -85,12 +90,12 @@ fun OverlayRoot(
         Panel(
             state = state,
             sessions = sessions,
+            dictating = dictating,
             onCollapse = onToggleExpanded,
             onDrag = onDrag,
             onInterrupt = onInterrupt,
             onNewSession = onNewSession,
             onSwitchSession = onSwitchSession,
-            onCompact = onCompact,
             onSubmitReply = onSubmitReply,
             onDictate = onDictate,
             onSetFocusable = onSetFocusable,
@@ -99,6 +104,7 @@ fun OverlayRoot(
     } else {
         Bubble(
             state = state,
+            dictating = dictating,
             onTap = onToggleExpanded,
             onInterrupt = onInterrupt,
             onRecordNewMessage = onRecordNewMessage,
@@ -112,6 +118,7 @@ fun OverlayRoot(
 @Composable
 private fun Bubble(
     state: OverlayUiState,
+    dictating: Boolean,
     onTap: () -> Unit,
     onInterrupt: () -> Unit,
     onRecordNewMessage: () -> Unit,
@@ -160,9 +167,23 @@ private fun Bubble(
                     style = MaterialTheme.typography.labelLarge,
                 )
             }
-            // Record a new spoken instruction (runs it as a task).
-            IconButton(onClick = onRecordNewMessage, modifier = Modifier.size(36.dp)) {
-                Icon(MicIcon, contentDescription = "Record a message", tint = Color.White)
+            // Record a new spoken instruction (runs it as a task). While capturing,
+            // the mic goes hot: red glyph on a white pill so the state is obvious.
+            Surface(
+                shape = CircleShape,
+                color = if (dictating) Color.White else Color.Transparent,
+                modifier = Modifier.size(36.dp),
+            ) {
+                IconButton(
+                    onClick = { if (!dictating) onRecordNewMessage() },
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        MicIcon,
+                        contentDescription = if (dictating) "Recording…" else "Record a message",
+                        tint = if (dictating) RecordingRed else Color.White,
+                    )
+                }
             }
             // Stop the current task.
             IconButton(onClick = onInterrupt, modifier = Modifier.size(36.dp)) {
@@ -178,12 +199,12 @@ private fun Bubble(
 private fun Panel(
     state: OverlayUiState,
     sessions: List<SessionEntity>,
+    dictating: Boolean,
     onCollapse: () -> Unit,
     onDrag: (Offset) -> Unit,
     onInterrupt: () -> Unit,
     onNewSession: () -> Unit,
     onSwitchSession: (Long) -> Unit,
-    onCompact: () -> Unit,
     onSubmitReply: (String) -> Unit,
     onDictate: suspend () -> String?,
     onSetFocusable: (Boolean) -> Unit,
@@ -195,7 +216,7 @@ private fun Panel(
         modifier = Modifier.widthIn(min = 280.dp, max = 340.dp),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Header doubles as the drag handle + collapse control.
+            // Header: drag handle + tap-to-collapse, with – (collapse) and ✕ (hide).
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -205,7 +226,8 @@ private fun Panel(
                             change.consume()
                             onDrag(delta)
                         }
-                    },
+                    }
+                    .pointerInput(Unit) { detectTapGestures(onTap = { onCollapse() }) },
             ) {
                 Box(
                     modifier = Modifier
@@ -219,8 +241,16 @@ private fun Panel(
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = onInterrupt) { Text("Stop") }
-                TextButton(onClick = onCollapse) { Text("–") }
+                IconButton(onClick = onCollapse, modifier = Modifier.size(32.dp)) {
+                    Text("–", style = MaterialTheme.typography.titleMedium)
+                }
+                IconButton(onClick = onStop, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Hide overlay",
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
 
             state.intent?.let {
@@ -278,23 +308,21 @@ private fun Panel(
             }
 
             Spacer(Modifier.height(10.dp))
-            ReplyField(
+            ReplyBar(
+                dictating = dictating,
                 onSubmitReply = onSubmitReply,
                 onDictate = onDictate,
+                onInterrupt = onInterrupt,
                 onSetFocusable = onSetFocusable,
             )
 
-            Spacer(Modifier.height(10.dp))
-            ControlsRow(
+            Spacer(Modifier.height(6.dp))
+            SessionsRow(
+                sessions = sessions,
+                currentId = state.sessionId,
+                onSwitchSession = onSwitchSession,
                 onNewSession = onNewSession,
-                onCompact = onCompact,
-                onStop = onStop,
             )
-
-            if (sessions.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                SessionSwitcher(sessions, state.sessionId, onSwitchSession)
-            }
         }
     }
 }
@@ -323,7 +351,7 @@ private fun Hud(hud: HudState?) {
                 style = MaterialTheme.typography.labelSmall,
             )
             Text(
-                text = "\$${"%.4f".format(hud.costUsd)} · ${hud.screenshotCount} shots",
+                text = "\$${"%.4f".format(hud.costUsd)} · ${hud.screenshotCount} photos",
                 style = MaterialTheme.typography.labelSmall,
             )
         }
@@ -403,125 +431,147 @@ private fun ConfirmationRow(prompt: ConfirmationPrompt, onSubmitReply: (String) 
     }
 }
 
+/**
+ * Always-visible reply bar: one text box (mic that becomes a send arrow once
+ * there's text, as its trailing icon) plus a stop button. The window is
+ * non-focusable by default, so a transparent tap-catcher sits over the field
+ * until the first tap flips the window focusable and moves focus in — after
+ * which the soft keyboard appears.
+ */
 @Composable
-private fun ReplyField(
+private fun ReplyBar(
+    dictating: Boolean,
     onSubmitReply: (String) -> Unit,
     onDictate: suspend () -> String?,
+    onInterrupt: () -> Unit,
     onSetFocusable: (Boolean) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
-    var typing by remember { mutableStateOf(false) }
     var text by remember { mutableStateOf("") }
-    var dictating by remember { mutableStateOf(false) }
+    var inputActive by remember { mutableStateOf(false) }
 
-    if (!typing) {
-        OutlinedButton(
-            onClick = {
-                typing = true
-                onSetFocusable(true)
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Type or speak a reply") }
-        return
-    }
-
-    // Grab focus + raise the soft keyboard as soon as the field appears.
-    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
-
-    fun dismiss() {
+    fun submit() {
+        if (text.isBlank()) return
+        onSubmitReply(text)
         text = ""
-        typing = false
+        inputActive = false
         onSetFocusable(false)
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            singleLine = true,
-            placeholder = { Text("Reply…") },
-            // Mic lives *inside* the input box and dictates into the field.
-            trailingIcon = {
-                IconButton(
-                    onClick = {
-                        if (dictating) return@IconButton
-                        dictating = true
-                        scope.launch {
-                            val spoken = onDictate()
-                            dictating = false
-                            if (!spoken.isNullOrBlank()) {
-                                text = if (text.isBlank()) spoken else "$text $spoken"
-                            }
-                        }
-                    },
-                ) {
-                    if (dictating) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(MicIcon, contentDescription = "Dictate")
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(
-                onSend = { if (text.isNotBlank()) { onSubmitReply(text); dismiss() } },
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = { onSubmitReply(text); dismiss() },
-                enabled = text.isNotBlank(),
-            ) { Text("Send") }
-            TextButton(onClick = { dismiss() }) { Text("Cancel") }
-        }
+    LaunchedEffect(inputActive) {
+        if (inputActive) runCatching { focusRequester.requestFocus() }
     }
-}
 
-@Composable
-private fun ControlsRow(
-    onNewSession: () -> Unit,
-    onCompact: () -> Unit,
-    onStop: () -> Unit,
-) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        TextButton(onClick = onNewSession) { Text("New", style = MaterialTheme.typography.labelSmall) }
-        TextButton(onClick = onCompact) { Text("Compact", style = MaterialTheme.typography.labelSmall) }
-        TextButton(onClick = onStop) { Text("Hide", style = MaterialTheme.typography.labelSmall) }
+        Box(modifier = Modifier.weight(1f)) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                placeholder = { Text("Message…", style = MaterialTheme.typography.bodySmall) },
+                textStyle = MaterialTheme.typography.bodyMedium,
+                trailingIcon = {
+                    when {
+                        dictating -> Icon(
+                            MicIcon,
+                            contentDescription = "Recording…",
+                            tint = RecordingRed,
+                        )
+                        text.isNotBlank() -> IconButton(onClick = { submit() }) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        }
+                        else -> IconButton(onClick = {
+                            scope.launch {
+                                val spoken = onDictate()
+                                if (!spoken.isNullOrBlank()) {
+                                    text = if (text.isBlank()) spoken else "$text $spoken"
+                                }
+                            }
+                        }) { Icon(MicIcon, contentDescription = "Dictate") }
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { submit() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+            )
+            if (!inputActive) {
+                // Tap-catcher over the field (but not the trailing icon): the first
+                // tap flips the window focusable, then focus + IME follow.
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(end = 48.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                inputActive = true
+                                onSetFocusable(true)
+                            })
+                        },
+                )
+            }
+        }
+        IconButton(onClick = onInterrupt) { StopGlyph(MaterialTheme.colorScheme.error) }
     }
 }
 
+/**
+ * Collapsed session strip: the current session's title with an expand caret and
+ * a "+" (new session). Expanding lists recent sessions to switch to.
+ */
 @Composable
-private fun SessionSwitcher(
+private fun SessionsRow(
     sessions: List<SessionEntity>,
     currentId: Long?,
     onSwitchSession: (Long) -> Unit,
+    onNewSession: () -> Unit,
 ) {
+    var listOpen by remember { mutableStateOf(false) }
+    val current = sessions.firstOrNull { it.id == currentId }?.title ?: "No session"
+
     Column {
-        Text(
-            text = "Sessions",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        sessions.take(5).forEach { session ->
-            val selected = session.id == currentId
-            TextButton(
-                onClick = { onSwitchSession(session.id) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = (if (selected) "• " else "") + session.title,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = (if (listOpen) "▾ " else "▸ ") + current,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { listOpen = !listOpen },
+            )
+            IconButton(onClick = onNewSession, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "New session",
+                    modifier = Modifier.size(16.dp),
                 )
+            }
+        }
+        if (listOpen) {
+            sessions.take(5).forEach { session ->
+                val selected = session.id == currentId
+                TextButton(
+                    onClick = {
+                        onSwitchSession(session.id)
+                        listOpen = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = (if (selected) "• " else "") + session.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }
@@ -530,21 +580,26 @@ private fun SessionSwitcher(
 // --- Small helpers ----------------------------------------------------------
 
 @Composable
-private fun StopGlyph() {
+private fun StopGlyph(color: Color = Color.White) {
     Box(
         modifier = Modifier
             .size(12.dp)
             .clip(RoundedCornerShape(2.dp))
-            .background(Color.White),
+            .background(color),
     )
 }
+
+/** Hot-mic tint shared by the record affordances. */
+private val RecordingRed = Color(0xFFD32F2F)
 
 @Composable
 private fun Modifier.heightInBounded(): Modifier = this.then(Modifier.height(220.dp))
 
 @Composable
 private fun phaseColor(phase: AgentPhase): Color = when (phase) {
-    AgentPhase.IDLE -> MaterialTheme.colorScheme.primary
+    // Deep purple, dark enough that the bubble's white text/icons stay readable
+    // regardless of the dynamic Material theme.
+    AgentPhase.IDLE -> Color(0xFF4A148C)
     AgentPhase.LISTENING -> Color(0xFF6A1B9A)
     AgentPhase.THINKING -> Color(0xFF1565C0)
     AgentPhase.SPEAKING -> Color(0xFF00838F)

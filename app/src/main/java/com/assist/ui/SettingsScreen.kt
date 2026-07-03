@@ -102,12 +102,22 @@ fun SettingsScreen(
                 text = "Settings",
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Text(
-                text = stringResource(R.string.onboarding_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
+            // --- Agent: the knobs you actually reach for -----------------------
+            SectionHeader("Agent")
+            ModelPickerCard(
+                selected = agentModel,
+                onSelect = settingsViewModel::setAgentModel,
+            )
+            FastModeCard(
+                enabled = fastMode,
+                onToggle = settingsViewModel::setFastMode,
+                supported = agentModel.supportsFast,
+            )
+            OverlayCard(overlayOk = overlayOk)
+
+            // --- Setup: one-time provisioning ----------------------------------
+            SectionHeader("Setup")
             PermissionsCard(
                 accessibilityOk = accessibilityOk,
                 overlayOk = overlayOk,
@@ -122,20 +132,13 @@ fun SettingsScreen(
                     }
                 },
             )
-
             ApiKeyCard(
                 hasApiKey = hasApiKey,
                 onSave = viewModel::saveApiKey,
             )
 
-            ModelPickerCard(
-                selected = agentModel,
-                onSelect = settingsViewModel::setAgentModel,
-            )
-            FastModeCard(enabled = fastMode, onToggle = settingsViewModel::setFastMode)
-
-            OverlayCard(overlayOk = overlayOk)
-
+            // --- Debug ----------------------------------------------------------
+            SectionHeader("Debug")
             OutlinedButton(
                 onClick = {
                     context.startActivity(
@@ -149,6 +152,15 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

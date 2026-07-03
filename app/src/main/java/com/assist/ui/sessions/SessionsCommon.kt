@@ -41,15 +41,21 @@ fun formatTokens(count: Int): String = when {
     else -> "%.1fM".format(count / 1_000_000.0)
 }
 
+/** Short human label for a model id ("Sonnet 5"); falls back to the raw id. */
+fun modelLabel(modelId: String): String =
+    AgentModel.fromModelId(modelId)?.label ?: modelId.removePrefix("claude-")
+
 /**
- * The persisted Fast-mode toggle (phase-12). Reusable so the main agent can drop
- * it into onboarding/settings. Notes the access + pricing caveats.
+ * The persisted Fast-mode toggle (phase-12). [supported] gates the switch to the
+ * models that actually take fast mode (Opus 4.8/4.7) — on other models it is
+ * disabled and explains why.
  */
 @Composable
 fun FastModeCard(
     enabled: Boolean,
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    supported: Boolean = true,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -60,21 +66,47 @@ fun FastModeCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text("Fast mode", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "~2.5× faster output on Opus 4.8/4.7. Requires API fast-mode access " +
-                        "and bills at premium (2×) pricing. Off by default.",
+                    if (supported) {
+                        "~2.5× faster output on Opus 4.8/4.7. Requires API fast-mode " +
+                            "access and bills at premium (2×) pricing. Off by default."
+                    } else {
+                        "Only available on Opus 4.8/4.7 — switch the default model " +
+                            "to Opus to enable."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(checked = enabled, onCheckedChange = onToggle)
+            Switch(
+                checked = enabled && supported,
+                onCheckedChange = onToggle,
+                enabled = supported,
+            )
+        }
+    }
+}
+
+/** Reusable Sonnet/Opus/Haiku chip row (settings default + per-session switcher). */
+@Composable
+fun ModelChips(
+    selected: AgentModel?,
+    onSelect: (AgentModel) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        AgentModel.entries.forEach { model ->
+            FilterChip(
+                selected = model == selected,
+                onClick = { onSelect(model) },
+                label = { Text(model.label) },
+            )
         }
     }
 }
 
 /**
- * Model selector for the agent loop. Three chips (Sonnet / Opus / Haiku) with a
- * one-line blurb for the current choice. Takes effect on the next run (the model
- * is fixed per-run for prompt-cache stability).
+ * Default-model selector: which model **new sessions** start on. A live session's
+ * model is switched from its transcript screen and takes effect on the next step.
  */
 @Composable
 fun ModelPickerCard(
@@ -84,17 +116,14 @@ fun ModelPickerCard(
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Model", style = MaterialTheme.typography.titleMedium)
+            Text("Default model", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Used for new sessions. Switch a running session from its transcript.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AgentModel.entries.forEach { model ->
-                    FilterChip(
-                        selected = model == selected,
-                        onClick = { onSelect(model) },
-                        label = { Text(model.label) },
-                    )
-                }
-            }
+            ModelChips(selected = selected, onSelect = onSelect)
             Spacer(Modifier.height(6.dp))
             Text(
                 selected.blurb,

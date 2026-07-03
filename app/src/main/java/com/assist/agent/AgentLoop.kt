@@ -1,6 +1,7 @@
 package com.assist.agent
 
 import android.util.Log
+import com.assist.data.AgentModel
 import com.assist.data.SessionRepository
 import com.assist.data.SettingsStore
 import com.assist.di.AppScope
@@ -111,10 +112,6 @@ class AgentLoop @Inject constructor(
 
         val tools = AgentTools.catalog()
         val toolNames = tools.map { it.name }
-        // Fast mode and model are session-level (switching either busts the prompt
-        // cache), so read both prefs once at the start of the run.
-        val speed = if (settings.isFastModeEnabled()) Speed.FAST else Speed.STANDARD
-        val model = settings.getAgentModel().modelId
         var pendingContext: ContextManagement? = null
         val progress = NoProgressTracker()
         var step = 0
@@ -127,6 +124,17 @@ class AgentLoop @Inject constructor(
                 return
             }
 
+            // The session row is the model's source of truth, re-read every step so
+            // a mid-session swap (from the transcript screen) applies on the next
+            // request. A swap busts the prompt cache once, then re-caches. Fast mode
+            // only applies on models that support it (Opus 4.8/4.7).
+            val model = repository.getSession(sessionId)?.modelDefault
+                ?: settings.getAgentModel().modelId
+            val speed = if (settings.isFastModeEnabled() && AgentModel.supportsFast(model)) {
+                Speed.FAST
+            } else {
+                Speed.STANDARD
+            }
             val request = LlmRequest(
                 model = model,
                 system = promptProvider.system(

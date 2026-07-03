@@ -42,6 +42,10 @@ interface SessionDao {
     @Query("UPDATE sessions SET status = :status, updatedAt = :now WHERE id = :id")
     suspend fun setStatus(id: Long, status: String, now: Long)
 
+    /** Switch the session's current model (mid-session swaps are supported). */
+    @Query("UPDATE sessions SET modelDefault = :model, updatedAt = :now WHERE id = :id")
+    suspend fun setModel(id: Long, model: String, now: Long)
+
     @Query("UPDATE sessions SET updatedAt = :now WHERE id = :id")
     suspend fun touch(id: Long, now: Long)
 }

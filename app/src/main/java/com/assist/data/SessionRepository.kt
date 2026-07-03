@@ -71,6 +71,9 @@ class SessionRepository(
 
     suspend fun renameSession(id: Long, title: String) = sessions.rename(id, title, now())
 
+    /** Switch [id]'s current model; the agent loop re-reads it every step. */
+    suspend fun setSessionModel(id: Long, model: String) = sessions.setModel(id, model, now())
+
     suspend fun endSession(id: Long) = sessions.setStatus(id, SessionStatus.ENDED, now())
 
     // --- Appends -----------------------------------------------------------

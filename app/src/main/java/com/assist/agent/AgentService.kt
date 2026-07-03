@@ -14,6 +14,7 @@ import com.assist.BuildConfig
 import com.assist.R
 import com.assist.data.SecretStore
 import com.assist.data.SessionRepository
+import com.assist.data.SettingsStore
 import com.assist.di.AppScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +35,8 @@ class AgentService : Service() {
     @Inject lateinit var repository: SessionRepository
 
     @Inject lateinit var secretStore: SecretStore
+
+    @Inject lateinit var settings: SettingsStore
 
     @Inject @AppScope lateinit var scope: CoroutineScope
 
@@ -68,7 +71,10 @@ class AgentService : Service() {
         seedApiKeyFromBuildConfig()
         startForegroundInternal("Running: ${userIntent.take(60)}")
         scope.launch {
-            val session = repository.createSession(title = userIntent.take(80))
+            val session = repository.createSession(
+                title = userIntent.take(80),
+                model = settings.getAgentModel().modelId,
+            )
             Log.i(TAG, "DEBUG_RUN session=${session.id} intent=\"$userIntent\"")
             runCatching { agentLoop.start(session.id, userIntent).join() }
                 .onFailure { Log.e(TAG, "run failed", it) }

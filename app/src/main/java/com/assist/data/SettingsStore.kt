@@ -6,27 +6,38 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Which Claude model the agent loop drives the phone with. The default is
- * [SONNET] — capable enough for on-device automation at ~40% lower per-token cost
- * than Opus. The user can bump to [OPUS] for tricky screens or drop to [HAIKU] for
- * the cheapest/fastest runs. Chosen once per run (switching mid-run would bust the
- * prompt cache), read from [SettingsStore.getAgentModel].
+ * Which Claude model the agent loop drives the phone with. The setting is the
+ * **default for new sessions**; each session carries its own current model
+ * (`SessionEntity.modelDefault`) which can be switched mid-session from the
+ * transcript screen — the loop re-reads it every step (a swap busts the prompt
+ * cache once, then re-caches on the new model).
+ *
+ * [supportsFast] marks the models eligible for Anthropic fast mode (Opus 4.8/4.7
+ * only) so the UI can gate the Fast-mode toggle.
  */
-enum class AgentModel(val modelId: String, val label: String, val blurb: String) {
+enum class AgentModel(
+    val modelId: String,
+    val label: String,
+    val blurb: String,
+    val supportsFast: Boolean,
+) {
     SONNET(
         modelId = "claude-sonnet-5",
         label = "Sonnet 5",
         blurb = "Balanced default — capable and ~40% cheaper per token than Opus.",
+        supportsFast = false,
     ),
     OPUS(
         modelId = "claude-opus-4-8",
         label = "Opus 4.8",
         blurb = "Most capable. Best on ambiguous screens and long tasks. Highest cost.",
+        supportsFast = true,
     ),
     HAIKU(
         modelId = "claude-haiku-4-5",
         label = "Haiku 4.5",
         blurb = "Fastest and cheapest (~80% less). May miss on complex UIs.",
+        supportsFast = false,
     ),
     ;
 
@@ -35,6 +46,12 @@ enum class AgentModel(val modelId: String, val label: String, val blurb: String)
 
         fun fromName(name: String?): AgentModel =
             entries.firstOrNull { it.name == name } ?: DEFAULT
+
+        /** Resolve a raw model id (e.g. from a session row); null if unknown. */
+        fun fromModelId(modelId: String?): AgentModel? =
+            entries.firstOrNull { it.modelId == modelId }
+
+        fun supportsFast(modelId: String?): Boolean = fromModelId(modelId)?.supportsFast == true
     }
 }
 

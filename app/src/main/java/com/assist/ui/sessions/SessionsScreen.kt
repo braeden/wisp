@@ -168,7 +168,8 @@ private fun SessionCard(
             )
             Spacer(Modifier.padding(2.dp))
             Text(
-                text = "${row.status} · ${row.messageCount} msgs · ${formatUsd(row.costUsd)} · ${formatRelativeTime(row.updatedAt)}",
+                text = "${row.status} · ${modelLabel(row.model)} · ${row.messageCount} msgs · " +
+                    "${formatUsd(row.costUsd)} · ${formatRelativeTime(row.updatedAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

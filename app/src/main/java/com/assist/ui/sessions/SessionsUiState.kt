@@ -10,6 +10,8 @@ data class SessionRowUi(
     val status: String,
     val costUsd: Double,
     val messageCount: Int,
+    /** The session's current model id (mid-session swaps update it). */
+    val model: String = "",
 )
 
 data class SessionsUiState(
@@ -33,6 +35,7 @@ object SessionsReducer {
                     status = s.session.status,
                     costUsd = s.costUsd,
                     messageCount = s.messageCount,
+                    model = s.session.modelDefault,
                 )
             },
         )

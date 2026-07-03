@@ -7,6 +7,7 @@ import com.assist.agent.AgentLoop
 import com.assist.data.ContextTracker
 import com.assist.data.SessionEntity
 import com.assist.data.SessionRepository
+import com.assist.data.SettingsStore
 import com.assist.di.AppScope
 import com.assist.voice.AudioSessionArbiter
 import com.assist.voice.MicOwner
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -58,6 +60,7 @@ class OverlayController @Inject constructor(
     private val contextTracker: ContextTracker,
     private val stt: SttEngine,
     private val arbiter: AudioSessionArbiter,
+    private val settings: SettingsStore,
     @AppScope private val scope: CoroutineScope,
 ) {
     private val reducer = OverlayReducer()
@@ -127,7 +130,10 @@ class OverlayController @Inject constructor(
     /** Start a fresh session (no run yet); becomes the current session. */
     fun newSession() {
         scope.launch {
-            val session = repository.createSession(title = "New session")
+            val session = repository.createSession(
+                title = "New session",
+                model = settings.getAgentModel().modelId,
+            )
             currentSessionId = session.id
             refreshHud()
             Log.i(TAG, "overlay new session=${session.id}")
@@ -184,6 +190,11 @@ class OverlayController @Inject constructor(
     /** Suspends until the next typed reply. Intended to be raced against voice. */
     suspend fun awaitTypedReply(): String = typed.first()
 
+    private val _dictating = MutableStateFlow(false)
+
+    /** True while a dictation capture is in flight — drives the mics' active state. */
+    val dictating: StateFlow<Boolean> = _dictating.asStateFlow()
+
     /**
      * Dictate a reply: capture one spoken utterance and return the transcript for
      * the reply field to fill in. Goes through the shared [AudioSessionArbiter] at
@@ -191,12 +202,18 @@ class OverlayController @Inject constructor(
      * Returns null on any recognition failure (no permission, no speech, etc.) so
      * the UI can simply fall back to typing.
      */
-    suspend fun dictate(): String? =
-        runCatching {
-            arbiter.withMic(MicOwner.LISTEN_ONCE) { stt.transcribeOnce().text }
-        }.onFailure { Log.w(TAG, "dictation failed: ${it.message}") }
-            .getOrNull()
-            ?.takeIf { it.isNotBlank() }
+    suspend fun dictate(): String? {
+        if (!_dictating.compareAndSet(expect = false, update = true)) return null
+        return try {
+            runCatching {
+                arbiter.withMic(MicOwner.LISTEN_ONCE) { stt.transcribeOnce().text }
+            }.onFailure { Log.w(TAG, "dictation failed: ${it.message}") }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
+        } finally {
+            _dictating.value = false
+        }
+    }
 
     // --- Internals ----------------------------------------------------------
 
@@ -212,8 +229,11 @@ class OverlayController @Inject constructor(
         val folded = merge(agentInputs, hud)
             .runningFold(OverlayUiState.INITIAL) { state, input -> reducer.reduce(state, input) }
             .throttleLatest(TEXT_THROTTLE_MS)
+        // Eagerly, not WhileSubscribed: the controller is a singleton and the fold
+        // must keep accumulating while the overlay window is closed, so reopening
+        // the overlay shows the run's text/tool history instead of a blank panel.
         return combine(folded, expanded) { core, isExpanded -> core.copy(expanded = isExpanded) }
-            .stateIn(scope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), OverlayUiState.INITIAL)
+            .stateIn(scope, SharingStarted.Eagerly, OverlayUiState.INITIAL)
     }
 
     companion object {
