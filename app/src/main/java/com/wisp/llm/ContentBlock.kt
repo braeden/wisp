@@ -40,4 +40,15 @@ sealed interface ContentBlock {
         val content: List<ContentBlock>,
         val isError: Boolean = false,
     ) : ContentBlock
+
+    /**
+     * An opaque provider-owned block, preserved verbatim for faithful replay.
+     * Carries server-tool activity (`server_tool_use`, `web_search_tool_result`,
+     * `advisor_tool_result`, …) that this seam does not model: dropping these
+     * from the echoed assistant turn breaks server-tool continuations, so they
+     * round-trip as raw wire JSON instead. [json] is the complete block object.
+     */
+    data class Raw(
+        val json: String,
+    ) : ContentBlock
 }

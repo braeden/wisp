@@ -34,5 +34,10 @@ sealed interface ToolSpec {
     data class ProviderTool(
         val type: String,
         override val name: String,
+        /**
+         * Optional provider-tool parameter (e.g. the advisor tool's advisor
+         * model). Serialized as a `model` field on the tool object when set.
+         */
+        val model: String? = null,
     ) : ToolSpec
 }

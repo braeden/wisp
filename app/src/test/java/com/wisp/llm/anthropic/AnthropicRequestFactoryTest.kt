@@ -107,6 +107,79 @@ class AnthropicRequestFactoryTest {
     }
 
     @Test
+    fun `advisor provider tool carries its model and beta header`() {
+        val req =
+            request(
+                model = "claude-sonnet-5",
+                tools =
+                    listOf(
+                        ToolSpec.ProviderTool(
+                            type = "advisor_20260301",
+                            name = "advisor",
+                            model = "claude-opus-4-8",
+                        ),
+                    ),
+            )
+        val tool = (body(req)["tools"] as JsonArray).single().jsonObject
+        assertEquals("advisor_20260301", tool["type"]?.jsonPrimitive?.content)
+        assertEquals("claude-opus-4-8", tool["model"]?.jsonPrimitive?.content)
+        assertTrue(
+            AnthropicRequestFactory
+                .betaHeaders(req)
+                .contains(AnthropicRequestFactory.BETA_ADVISOR_TOOL),
+        )
+    }
+
+    @Test
+    fun `non-advisor provider tools add no advisor beta and no model field`() {
+        val req =
+            request(
+                tools =
+                    listOf(
+                        ToolSpec.ProviderTool(type = "web_search_20260209", name = "web_search"),
+                    ),
+            )
+        val tool = (body(req)["tools"] as JsonArray).single().jsonObject
+        assertFalse(tool.containsKey("model"))
+        assertFalse(
+            AnthropicRequestFactory
+                .betaHeaders(req)
+                .contains(AnthropicRequestFactory.BETA_ADVISOR_TOOL),
+        )
+    }
+
+    @Test
+    fun `raw content block is replayed verbatim`() {
+        val rawJson =
+            """{"type":"server_tool_use","id":"srvtoolu_1","name":"web_search",""" +
+                """"input":{"query":"weather"}}"""
+        val req =
+            request(
+                messages =
+                    listOf(
+                        LlmMessage(Role.ASSISTANT, listOf(ContentBlock.Raw(rawJson))),
+                    ),
+            )
+        val block =
+            (body(req)["messages"] as JsonArray)
+                .single()
+                .jsonObject["content"]!!
+                .let { it as JsonArray }
+                .single()
+                .jsonObject
+        assertEquals("server_tool_use", block["type"]?.jsonPrimitive?.content)
+        assertEquals("srvtoolu_1", block["id"]?.jsonPrimitive?.content)
+        assertEquals(
+            "weather",
+            block["input"]
+                ?.jsonObject
+                ?.get("query")
+                ?.jsonPrimitive
+                ?.content,
+        )
+    }
+
+    @Test
     fun `system role message maps to role system`() {
         val req =
             request(

@@ -432,6 +432,7 @@ class SessionRepository(
                     dropped =
                         mediaById[block.mediaId]?.dropped ?: true,
                 )
+            is StoredBlock.Raw -> TranscriptBlock.Text("[server tool activity]")
         }
 
     private fun storedToText(blocks: List<StoredBlock>): String =
@@ -442,6 +443,7 @@ class SessionRepository(
                 is StoredBlock.ToolUse -> "${it.name}(${it.inputJson})"
                 is StoredBlock.ToolResult -> storedToText(it.content)
                 is StoredBlock.ImageRef -> "[screenshot]"
+                is StoredBlock.Raw -> "[server tool activity]"
             }
         }
 
@@ -554,6 +556,7 @@ class SessionRepository(
                 val saved = saveScreenshot(sessionId, bytes, block.mediaType)
                 StoredBlock.ImageRef(mediaId = saved.id, mediaType = block.mediaType)
             }
+            is ContentBlock.Raw -> StoredBlock.Raw(block.json)
         }
 
     /** Convert a stored block back to a [ContentBlock], honoring dropped media. */
@@ -588,6 +591,7 @@ class SessionRepository(
                     ContentBlock.Text(DROPPED_SCREENSHOT_PLACEHOLDER)
                 }
             }
+            is StoredBlock.Raw -> ContentBlock.Raw(block.json)
         }
 
     private suspend fun touch(sessionId: Long) = sessions.touch(sessionId, now())

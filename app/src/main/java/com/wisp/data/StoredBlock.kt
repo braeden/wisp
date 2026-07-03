@@ -49,4 +49,14 @@ sealed interface StoredBlock {
         val content: List<StoredBlock>,
         val isError: Boolean = false,
     ) : StoredBlock
+
+    /**
+     * Provider-owned wire block (server_tool_use / web_search_tool_result /
+     * advisor_tool_result, …) preserved verbatim for faithful replay.
+     */
+    @Serializable
+    @SerialName("raw")
+    data class Raw(
+        val json: String,
+    ) : StoredBlock
 }

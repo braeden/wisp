@@ -32,7 +32,11 @@ internal object AnthropicRequestFactory {
      * fast-mode (phase-12), deduped.
      */
     fun betaHeaders(request: LlmRequest): List<String> =
-        (betaHeaders(request.contextManagement) + fastModeBetas(request)).distinct()
+        (
+            betaHeaders(request.contextManagement) +
+                fastModeBetas(request) +
+                advisorBetas(request)
+        ).distinct()
 
     /** Beta headers required for the request's context-management edits, if any. */
     fun betaHeaders(cm: ContextManagement?): List<String> {
@@ -46,6 +50,14 @@ internal object AnthropicRequestFactory {
     /** Fast-mode beta header when [fastModeApplies] (phase-12). */
     fun fastModeBetas(request: LlmRequest): List<String> =
         if (fastModeApplies(request)) listOf(BETA_FAST_MODE) else emptyList()
+
+    /** Advisor-tool beta header when an `advisor_*` provider tool is advertised. */
+    fun advisorBetas(request: LlmRequest): List<String> =
+        if (request.tools.any { it is ToolSpec.ProviderTool && it.type.startsWith("advisor_") }) {
+            listOf(BETA_ADVISOR_TOOL)
+        } else {
+            emptyList()
+        }
 
     /**
      * Fast mode is only sent for [Speed.FAST] on Opus 4.8/4.7; on any other model
@@ -135,11 +147,13 @@ internal object AnthropicRequestFactory {
                             put("input_schema", json.parseToJsonElement(tool.inputSchemaJson))
                             if (tool.strict) put("strict", true)
                         }
-                        // Provider tools (e.g. memory_20250818) are passthrough:
-                        // {type, name}; the provider owns their schema.
+                        // Provider tools (e.g. memory_20250818, web_search_20260209)
+                        // are passthrough: {type, name}; the provider owns their
+                        // schema. The advisor tool additionally names its model.
                         is ToolSpec.ProviderTool -> {
                             put("type", tool.type)
                             put("name", tool.name)
+                            tool.model?.let { put("model", it) }
                         }
                     }
                     // Cache the (deterministic) tool prefix.
@@ -215,6 +229,10 @@ internal object AnthropicRequestFactory {
                     put("content", contentArray(json, block.content))
                     if (block.isError) put("is_error", true)
                 }
+
+            // Provider-owned block (server_tool_use / *_tool_result): replay the
+            // wire JSON verbatim so server-tool turns continue faithfully.
+            is ContentBlock.Raw -> parseObjectOrEmpty(json, block.json)
         }
 
     private fun JsonObjectBuilder.putContextManagement(cm: ContextManagement?) {
@@ -272,6 +290,7 @@ internal object AnthropicRequestFactory {
     const val BETA_CONTEXT_MANAGEMENT = "context-management-2025-06-27"
     const val BETA_COMPACT = "compact-2026-01-12"
     const val BETA_FAST_MODE = "fast-mode-2026-02-01"
+    const val BETA_ADVISOR_TOOL = "advisor-tool-2026-03-01"
 
     /** Models on which fast mode is accepted (phase-12). */
     val FAST_MODE_MODELS = setOf("claude-opus-4-8", "claude-opus-4-7")

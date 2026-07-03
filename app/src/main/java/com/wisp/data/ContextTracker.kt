@@ -54,6 +54,7 @@ class ContextTracker(
                         val media = mediaById[block.mediaId]
                         if (media != null && !media.dropped) IMAGE_TOKENS else 0
                     }
+                    is StoredBlock.Raw -> estimateText(block.json)
                 }
         }
         return tokens

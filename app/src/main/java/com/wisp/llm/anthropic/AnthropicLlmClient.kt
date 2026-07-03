@@ -15,9 +15,11 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -213,15 +215,29 @@ class AnthropicLlmClient(
                 val index = event.intOrNull("index") ?: return
                 val block = event["content_block"]?.jsonObject ?: return
                 val builder = acc.blockAt(index, block.type ?: "")
-                if (block.type == "tool_use") {
-                    builder.toolId = block.stringOrNull("id")
-                    builder.toolName = block.stringOrNull("name")
-                    onEvent(
-                        LlmStreamEvent.ToolUseStart(
-                            id = builder.toolId.orEmpty(),
-                            name = builder.toolName.orEmpty(),
-                        ),
-                    )
+                when (block.type) {
+                    "tool_use" -> {
+                        builder.toolId = block.stringOrNull("id")
+                        builder.toolName = block.stringOrNull("name")
+                        onEvent(
+                            LlmStreamEvent.ToolUseStart(
+                                id = builder.toolId.orEmpty(),
+                                name = builder.toolName.orEmpty(),
+                            ),
+                        )
+                    }
+                    // A server-executed tool call (web_search / web_fetch /
+                    // advisor): its input streams via input_json_delta like a
+                    // client tool, but it is provider-owned — accumulated into a
+                    // Raw block, never routed to the ToolRouter.
+                    "server_tool_use" -> {
+                        builder.toolId = block.stringOrNull("id")
+                        builder.toolName = block.stringOrNull("name")
+                    }
+                    "text", "thinking" -> Unit
+                    // Any other type (web_search_tool_result, advisor_tool_result,
+                    // …) arrives complete in the start event; keep it verbatim.
+                    else -> builder.raw = block
                 }
             }
 
@@ -323,6 +339,9 @@ class AnthropicLlmClient(
         var toolId: String? = null
         var toolName: String? = null
         val toolInput = StringBuilder()
+
+        /** Verbatim wire JSON for provider-owned blocks (server tool results). */
+        var raw: JsonObject? = null
     }
 
     private class StreamAccumulator {
@@ -330,6 +349,10 @@ class AnthropicLlmClient(
         var usage = Usage()
         var stopReason = ""
         var done = false
+
+        private fun parseObjectOrEmpty(raw: String): JsonObject =
+            runCatching { defaultJson.parseToJsonElement(raw) as? JsonObject }.getOrNull()
+                ?: JsonObject(emptyMap())
 
         fun blockAt(
             index: Int,
@@ -363,6 +386,25 @@ class AnthropicLlmClient(
                         content += ContentBlock.ToolUse(id, name, inputJson)
                         toolCalls += ToolCall(id, name, inputJson)
                     }
+
+                    // Server-executed tool call: rebuilt as a Raw block for
+                    // faithful replay; intentionally NOT surfaced as a ToolCall.
+                    "server_tool_use" ->
+                        content +=
+                            ContentBlock.Raw(
+                                buildJsonObject {
+                                    put("type", "server_tool_use")
+                                    put("id", builder.toolId.orEmpty())
+                                    put("name", builder.toolName.orEmpty())
+                                    put(
+                                        "input",
+                                        parseObjectOrEmpty(builder.toolInput.toString()),
+                                    )
+                                }.toString(),
+                            )
+
+                    // Provider-owned result blocks: preserved verbatim.
+                    else -> builder.raw?.let { content += ContentBlock.Raw(it.toString()) }
                 }
             }
             return LlmResponse(
