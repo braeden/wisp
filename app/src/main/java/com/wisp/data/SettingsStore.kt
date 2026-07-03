@@ -70,12 +70,23 @@ interface SettingsStore {
     /** Observable for UI; emits the current value immediately. */
     val fastMode: StateFlow<Boolean>
 
-    fun getAgentModel(): AgentModel
-
     fun setAgentModel(model: AgentModel)
 
-    /** Observable for UI; emits the current value immediately. */
+    /**
+     * Current model + observable. Read the snapshot as `agentModel.value` —
+     * a `getAgentModel()` method would clash with this property's JVM getter.
+     */
     val agentModel: StateFlow<AgentModel>
+
+    fun setTtsEngine(enginePackage: String?)
+
+    /** TTS engine package to synthesize with; null = system default engine. */
+    val ttsEngine: StateFlow<String?>
+
+    fun setWakeKeyword(keyword: String)
+
+    /** Wake keyword name (a Porcupine built-in, e.g. "PORCUPINE"). */
+    val wakeKeyword: StateFlow<String>
 }
 
 class PrefsSettingsStore(
@@ -97,16 +108,44 @@ class PrefsSettingsStore(
 
     override val agentModel: StateFlow<AgentModel> = _agentModel.asStateFlow()
 
-    override fun getAgentModel(): AgentModel = _agentModel.value
-
     override fun setAgentModel(model: AgentModel) {
         prefs.edit().putString(KEY_MODEL, model.name).apply()
         _agentModel.value = model
     }
 
+    private val _ttsEngine = MutableStateFlow(prefs.getString(KEY_TTS_ENGINE, null))
+
+    override val ttsEngine: StateFlow<String?> = _ttsEngine.asStateFlow()
+
+    override fun setTtsEngine(enginePackage: String?) {
+        prefs
+            .edit()
+            .apply {
+                if (enginePackage.isNullOrBlank()) {
+                    remove(KEY_TTS_ENGINE)
+                } else {
+                    putString(KEY_TTS_ENGINE, enginePackage)
+                }
+            }.apply()
+        _ttsEngine.value = enginePackage?.takeIf { it.isNotBlank() }
+    }
+
+    private val _wakeKeyword =
+        MutableStateFlow(prefs.getString(KEY_WAKE_KEYWORD, null) ?: DEFAULT_WAKE_KEYWORD)
+
+    override val wakeKeyword: StateFlow<String> = _wakeKeyword.asStateFlow()
+
+    override fun setWakeKeyword(keyword: String) {
+        prefs.edit().putString(KEY_WAKE_KEYWORD, keyword).apply()
+        _wakeKeyword.value = keyword
+    }
+
     private companion object {
-        const val PREFS = "assist_settings"
+        const val PREFS = "wisp_settings"
         const val KEY_FAST_MODE = "fast_mode_enabled"
         const val KEY_MODEL = "agent_model"
+        const val KEY_TTS_ENGINE = "tts_engine"
+        const val KEY_WAKE_KEYWORD = "wake_keyword"
+        const val DEFAULT_WAKE_KEYWORD = "PORCUPINE"
     }
 }

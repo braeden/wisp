@@ -16,6 +16,7 @@ import com.wisp.voice.TtsEngine
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import kotlinx.coroutines.flow.MutableStateFlow
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +48,7 @@ class OverlayControllerTest {
     private val tts = mockk<TtsEngine>(relaxed = true)
     private val settings =
         mockk<SettingsStore>(relaxed = true) {
-            every { getAgentModel() } returns AgentModel.DEFAULT
+            every { agentModel } returns MutableStateFlow(AgentModel.DEFAULT)
         }
 
     @Test

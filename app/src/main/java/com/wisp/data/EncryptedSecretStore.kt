@@ -38,8 +38,20 @@ class EncryptedSecretStore(
             }.apply()
     }
 
+    override fun getPicovoiceKey(): String? =
+        prefs.getString(KEY_PICOVOICE, null)?.takeIf { it.isNotBlank() }
+
+    override fun setPicovoiceKey(value: String) {
+        prefs
+            .edit()
+            .apply {
+                if (value.isBlank()) remove(KEY_PICOVOICE) else putString(KEY_PICOVOICE, value.trim())
+            }.apply()
+    }
+
     private companion object {
-        const val PREFS_FILE = "assist_secrets"
+        const val PREFS_FILE = "wisp_secrets"
         const val KEY_API = "anthropic_api_key"
+        const val KEY_PICOVOICE = "picovoice_access_key"
     }
 }

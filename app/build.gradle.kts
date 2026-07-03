@@ -189,6 +189,9 @@ dependencies {
     // HTTP transport for the Claude client (phase-04)
     implementation(libs.okhttp)
 
+    // Wake word (phase-09): on-device keyword spotting.
+    implementation(libs.porcupine.android)
+
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

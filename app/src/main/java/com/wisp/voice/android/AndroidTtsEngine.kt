@@ -27,16 +27,22 @@ import kotlin.coroutines.resume
  * coroutine cancellation calls [stop] for clean barge-in. Requests transient
  * ducking focus around playback and tags audio as `USAGE_ASSISTANT`.
  *
+ * The synthesis engine is selectable: [enginePackage] is re-read on every
+ * [say]/[voices], and a change swaps in a fresh `TextToSpeech` bound to that
+ * engine (the `TextToSpeech(context, listener, engine)` constructor — the
+ * supported replacement for the deprecated `setEngineByPackageName`). `null`
+ * means the system default engine.
+ *
  * All `TextToSpeech` types stay inside this class (behind [TtsEngine]).
  */
 class AndroidTtsEngine(
     context: Context,
+    private val enginePackage: () -> String? = { null },
     private val defaultLocale: java.util.Locale = java.util.Locale.US,
 ) : TtsEngine {
     private val appContext = context.applicationContext
     private val audioFocus = AudioFocus(appContext)
 
-    private val ready = CompletableDeferred<Boolean>()
     private val utteranceSeq = AtomicLong(0)
     private val pending = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
 
@@ -45,19 +51,6 @@ class AndroidTtsEngine(
             extraBufferCapacity = 64,
             onBufferOverflow = BufferOverflow.DROP_OLDEST,
         )
-
-    private val tts: TextToSpeech =
-        TextToSpeech(appContext) { status ->
-            val ok = status == TextToSpeech.SUCCESS
-            if (ok) {
-                runCatching { tts.language = defaultLocale }
-                tts.setAudioAttributes(audioFocus.audioAttributes)
-                tts.setOnUtteranceProgressListener(progressListener)
-            } else {
-                Log.w(TAG, "TextToSpeech init failed: $status")
-            }
-            ready.complete(ok)
-        }
 
     private val progressListener =
         object : UtteranceProgressListener() {
@@ -102,11 +95,56 @@ class AndroidTtsEngine(
             }
         }
 
-    override suspend fun isAvailable(): Boolean = ready.await()
+    /** One `TextToSpeech` bound to a specific engine (or the system default). */
+    private inner class Session(
+        val engine: String?,
+    ) {
+        val ready = CompletableDeferred<Boolean>()
+        val tts: TextToSpeech =
+            TextToSpeech(
+                appContext,
+                { status ->
+                    val ok = status == TextToSpeech.SUCCESS
+                    if (ok) {
+                        runCatching { tts.language = defaultLocale }
+                        tts.setAudioAttributes(audioFocus.audioAttributes)
+                        tts.setOnUtteranceProgressListener(progressListener)
+                    } else {
+                        Log.w(TAG, "TextToSpeech init failed: $status (engine=$engine)")
+                    }
+                    ready.complete(ok)
+                },
+                engine,
+            )
+
+        fun shutdown() {
+            runCatching { tts.stop() }
+            runCatching { tts.shutdown() }
+        }
+    }
+
+    @Volatile
+    private var session = Session(enginePackage())
+
+    /** The live session, recreated if the selected engine changed. */
+    @Synchronized
+    private fun currentSession(): Session {
+        val wanted = enginePackage()
+        if (wanted != session.engine) {
+            Log.i(TAG, "switching TTS engine ${session.engine} -> $wanted")
+            session.shutdown()
+            // Settle utterances the dead engine will never report on.
+            pending.keys.toList().forEach { pending.remove(it)?.complete(false) }
+            session = Session(wanted)
+        }
+        return session
+    }
+
+    override suspend fun isAvailable(): Boolean = currentSession().ready.await()
 
     override fun voices(): List<VoiceInfo> =
         runCatching {
-            tts.voices.orEmpty().map { it.toVoiceInfo() }
+            currentSession().tts.voices.orEmpty().map { it.toVoiceInfo() }
         }.getOrDefault(emptyList())
 
     override suspend fun say(
@@ -114,19 +152,20 @@ class AndroidTtsEngine(
         opts: SpeakOptions,
     ) {
         if (text.isBlank()) return
-        if (!ready.await()) return
+        val s = currentSession()
+        if (!s.ready.await()) return
 
         val id = "u-${utteranceSeq.incrementAndGet()}"
         val done = CompletableDeferred<Boolean>()
         pending[id] = done
 
-        applyVoice(opts)
-        tts.setPitch(opts.pitch)
-        tts.setSpeechRate(opts.rate)
+        applyVoice(s.tts, opts)
+        s.tts.setPitch(opts.pitch)
+        s.tts.setSpeechRate(opts.rate)
         audioFocus.request()
 
         val queueMode = if (opts.flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
-        val result = tts.speak(text, queueMode, null, id)
+        val result = s.tts.speak(text, queueMode, null, id)
         if (result != TextToSpeech.SUCCESS) {
             pending.remove(id)
             audioFocus.abandon()
@@ -138,32 +177,34 @@ class AndroidTtsEngine(
             done.invokeOnCompletion { cont.resume(Unit) }
             cont.invokeOnCancellation {
                 // Barge-in: stop playback; the onStop callback settles `done`.
-                runCatching { tts.stop() }
+                runCatching { s.tts.stop() }
                 audioFocus.abandon()
             }
         }
     }
 
     override fun stop() {
-        runCatching { tts.stop() }
+        runCatching { session.tts.stop() }
         audioFocus.abandon()
         // Settle anything the listener didn't (e.g. stop before onStart).
         pending.keys.toList().forEach { pending.remove(it)?.complete(false) }
     }
 
     override val isSpeaking: Boolean
-        get() = runCatching { tts.isSpeaking }.getOrDefault(false)
+        get() = runCatching { session.tts.isSpeaking }.getOrDefault(false)
 
     override fun events(): Flow<TtsEvent> = _events.asSharedFlow()
 
     /** Release the engine (process teardown). Not reusable afterwards. */
     fun shutdown() {
-        runCatching { tts.stop() }
-        runCatching { tts.shutdown() }
+        session.shutdown()
         audioFocus.abandon()
     }
 
-    private fun applyVoice(opts: SpeakOptions) {
+    private fun applyVoice(
+        tts: TextToSpeech,
+        opts: SpeakOptions,
+    ) {
         val voiceId = opts.voiceId ?: return
         val match = runCatching { tts.voices }.getOrNull()?.firstOrNull { it.name == voiceId }
         if (match != null) tts.voice = match

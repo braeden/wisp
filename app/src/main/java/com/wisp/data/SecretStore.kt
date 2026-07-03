@@ -1,14 +1,15 @@
 package com.wisp.data
 
 /**
- * Secure storage for the Anthropic API key. Owned by phase-02; consumed by the
- * LLM layer in phase-04.
+ * Secure storage for API credentials. Owned by phase-02; the Anthropic key is
+ * consumed by the LLM layer (phase-04), the Picovoice AccessKey by the wake-word
+ * detector (phase-09).
  *
- * The key never leaves the device except in Authorization headers to the
- * Anthropic API, and is never logged.
+ * Keys never leave the device except in auth headers/handshakes to their own
+ * service, and are never logged.
  */
 interface SecretStore {
-    /** @return the stored API key, or null if none has been set. */
+    /** @return the stored Anthropic API key, or null if none has been set. */
     fun getApiKey(): String?
 
     /** Persist [value]; pass a blank string to clear. */
@@ -16,4 +17,13 @@ interface SecretStore {
 
     /** True if a non-blank key is stored. */
     fun hasApiKey(): Boolean = !getApiKey().isNullOrBlank()
+
+    /** @return the stored Picovoice AccessKey (wake word), or null if unset. */
+    fun getPicovoiceKey(): String?
+
+    /** Persist [value]; pass a blank string to clear. */
+    fun setPicovoiceKey(value: String)
+
+    /** True if a non-blank Picovoice AccessKey is stored. */
+    fun hasPicovoiceKey(): Boolean = !getPicovoiceKey().isNullOrBlank()
 }

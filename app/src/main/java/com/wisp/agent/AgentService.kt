@@ -88,7 +88,7 @@ class AgentService : Service() {
                 resumeSessionId?.let { repository.resumeSession(it) }
                     ?: repository.createSession(
                         title = userIntent.take(80),
-                        model = settings.getAgentModel().modelId,
+                        model = settings.agentModel.value.modelId,
                     )
             Log.i(
                 TAG,

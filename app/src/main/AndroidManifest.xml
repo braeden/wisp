@@ -14,6 +14,8 @@
     <!-- Foreground service hosting the overlay + agent loop (phase-07). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Always-on wake-word listener (phase-09). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- open_app + label resolution needs to enumerate installed launcher apps. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -83,6 +85,13 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="on-device AI phone agent" />
         </service>
+
+        <!-- phase-09 — always-on wake-word foreground service (Porcupine).
+             `microphone` type keeps the OS mic indicator honest while armed. -->
+        <service
+            android:name=".voice.wake.WakeWordService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <!-- phase-06 — debug entry point: an `adb am broadcast` of
              com.wisp.DEBUG_RUN with a string `intent` extra starts a session +

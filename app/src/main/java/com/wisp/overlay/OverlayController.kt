@@ -151,7 +151,7 @@ class OverlayController
                 val session =
                     repository.createSession(
                         title = "New session",
-                        model = settings.getAgentModel().modelId,
+                        model = settings.agentModel.value.modelId,
                     )
                 currentSessionId = session.id
                 hud.tryEmit(OverlayInput.SessionChanged(session.id, session.title))

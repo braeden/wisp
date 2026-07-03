@@ -161,7 +161,7 @@ class AgentLoop
                 // only applies on models that support it (Opus 4.8/4.7).
                 val model =
                     repository.getSession(sessionId)?.modelDefault
-                        ?: settings.getAgentModel().modelId
+                        ?: settings.agentModel.value.modelId
                 val speed =
                     if (settings.isFastModeEnabled() && AgentModel.supportsFast(model)) {
                         Speed.FAST

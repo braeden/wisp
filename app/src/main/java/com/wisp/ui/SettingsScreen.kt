@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +47,9 @@ import com.wisp.overlay.OverlayService
 import com.wisp.ui.sessions.FastModeCard
 import com.wisp.ui.sessions.ModelPickerCard
 import com.wisp.ui.sessions.SettingsViewModel
+import com.wisp.voice.android.TtsEngineChoice
+import com.wisp.voice.wake.PorcupineKeywords
+import com.wisp.voice.wake.WakeWordService
 
 /**
  * Setup + preferences + debug surface (the "Settings" tab). Absorbs the old
@@ -60,6 +66,11 @@ fun SettingsScreen(
     val hasApiKey by viewModel.hasApiKey.collectAsState()
     val agentModel by settingsViewModel.agentModel.collectAsState()
     val fastMode by settingsViewModel.fastMode.collectAsState()
+    val ttsEngine by settingsViewModel.ttsEngine.collectAsState()
+    val ttsEngines by settingsViewModel.ttsEngines.collectAsState()
+    val defaultTtsEngine by settingsViewModel.defaultTtsEngine.collectAsState()
+    val wakeKeyword by settingsViewModel.wakeKeyword.collectAsState()
+    val hasPicovoiceKey by settingsViewModel.hasPicovoiceKey.collectAsState()
 
     // Bumped on every ON_RESUME so permission rows re-read after the user returns
     // from a Settings deep-link.
@@ -120,6 +131,22 @@ fun SettingsScreen(
                 supported = agentModel.supportsFast,
             )
             OverlayCard(overlayOk = overlayOk)
+
+            // --- Voice ----------------------------------------------------------
+            SectionHeader("Voice")
+            TtsEngineCard(
+                engines = ttsEngines,
+                selected = ttsEngine,
+                defaultEngine = defaultTtsEngine,
+                onSelect = settingsViewModel::setTtsEngine,
+            )
+            WakeWordCard(
+                keyword = wakeKeyword,
+                hasPicovoiceKey = hasPicovoiceKey,
+                micOk = micOk,
+                onSelectKeyword = settingsViewModel::setWakeKeyword,
+                onSaveKey = settingsViewModel::savePicovoiceKey,
+            )
 
             // --- Setup: one-time provisioning ----------------------------------
             SectionHeader("Setup")
@@ -287,6 +314,185 @@ private fun OverlayCard(overlayOk: Boolean) {
                 Text(
                     stringResource(
                         if (shown) R.string.overlay_hide else R.string.overlay_show,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+/** Dropdown over the installed TTS engines; null selection = system default. */
+@Composable
+private fun TtsEngineCard(
+    engines: List<TtsEngineChoice>,
+    selected: String?,
+    defaultEngine: String?,
+    onSelect: (String?) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    val defaultLabel =
+        engines.firstOrNull { it.packageName == defaultEngine }?.label
+            ?.let { stringResource(R.string.tts_engine_default_named, it) }
+            ?: stringResource(R.string.tts_engine_default)
+    val selectedLabel =
+        engines.firstOrNull { it.packageName == selected }?.label ?: defaultLabel
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.tts_engine_header),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.tts_engine_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Box {
+                OutlinedButton(
+                    onClick = { open = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(selectedLabel)
+                }
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    DropdownMenuItem(
+                        text = { Text(defaultLabel) },
+                        onClick = {
+                            onSelect(null)
+                            open = false
+                        },
+                    )
+                    engines.forEach { engine ->
+                        DropdownMenuItem(
+                            text = { Text(engine.label) },
+                            onClick = {
+                                onSelect(engine.packageName)
+                                open = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Wake-word controls: built-in keyword picker, the Picovoice AccessKey field
+ * (stored encrypted, like the Anthropic key), and the arm/disarm toggle for
+ * [WakeWordService]. Saying the keyword opens the overlay already listening.
+ */
+@Composable
+private fun WakeWordCard(
+    keyword: String,
+    hasPicovoiceKey: Boolean,
+    micOk: Boolean,
+    onSelectKeyword: (String) -> Unit,
+    onSaveKey: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val running by WakeWordService.running.collectAsState()
+    var open by remember { mutableStateOf(false) }
+    var keyField by remember { mutableStateOf("") }
+    var justSaved by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.wake_header),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.wake_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Box {
+                OutlinedButton(
+                    onClick = { open = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !running,
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.wake_keyword_label,
+                            PorcupineKeywords.displayName(keyword),
+                        ),
+                    )
+                }
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    PorcupineKeywords.allNames().forEach { name ->
+                        DropdownMenuItem(
+                            text = { Text(PorcupineKeywords.displayName(name)) },
+                            onClick = {
+                                onSelectKeyword(name)
+                                open = false
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (!hasPicovoiceKey) {
+                Text(
+                    text = stringResource(R.string.wake_needs_key),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            OutlinedTextField(
+                value = keyField,
+                onValueChange = {
+                    keyField = it
+                    justSaved = false
+                },
+                label = { Text(stringResource(R.string.picovoice_key_hint)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        onSaveKey(keyField)
+                        keyField = ""
+                        justSaved = true
+                    },
+                    enabled = keyField.isNotBlank(),
+                ) {
+                    Text(stringResource(R.string.api_key_save))
+                }
+                if (justSaved) {
+                    Text(
+                        text = stringResource(R.string.api_key_saved),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
+            Button(
+                onClick = {
+                    if (running) WakeWordService.stop(context) else WakeWordService.start(context)
+                },
+                enabled = micOk && hasPicovoiceKey,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    stringResource(
+                        if (running) R.string.wake_disable else R.string.wake_enable,
                     ),
                 )
             }

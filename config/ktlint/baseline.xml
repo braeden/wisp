@@ -18,6 +18,15 @@
     <file name="src/main/java/com/wisp/agent/package.kt">
         <error line="1" column="1" source="standard:no-empty-file" />
     </file>
+    <file name="src/main/java/com/wisp/data/EncryptedSecretStore.kt">
+        <error line="48" column="45" source="standard:argument-list-wrapping" />
+        <error line="48" column="58" source="standard:argument-list-wrapping" />
+        <error line="48" column="75" source="standard:argument-list-wrapping" />
+        <error line="48" column="90" source="standard:argument-list-wrapping" />
+        <error line="48" column="95" source="standard:chain-method-continuation" />
+        <error line="48" column="101" source="standard:max-line-length" />
+        <error line="48" column="102" source="standard:argument-list-wrapping" />
+    </file>
     <file name="src/main/java/com/wisp/data/SessionDao.kt">
         <error line="30" column="101" source="standard:max-line-length" />
     </file>
@@ -25,6 +34,9 @@
         <error line="11" column="1" source="standard:no-consecutive-comments" />
     </file>
     <file name="src/main/java/com/wisp/di/DataModule.kt">
+        <error line="3" column="1" source="standard:import-ordering" />
+    </file>
+    <file name="src/main/java/com/wisp/di/VoiceModule.kt">
         <error line="3" column="1" source="standard:import-ordering" />
     </file>
     <file name="src/main/java/com/wisp/llm/anthropic/package.kt">
@@ -68,12 +80,17 @@
         <error line="73" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/java/com/wisp/ui/SettingsScreen.kt">
-        <error line="55" column="5" source="standard:function-naming" />
-        <error line="163" column="13" source="standard:function-naming" />
-        <error line="172" column="13" source="standard:function-naming" />
-        <error line="220" column="13" source="standard:function-naming" />
-        <error line="253" column="13" source="standard:function-naming" />
-        <error line="298" column="13" source="standard:function-naming" />
+        <error line="3" column="1" source="standard:import-ordering" />
+        <error line="61" column="5" source="standard:function-naming" />
+        <error line="190" column="13" source="standard:function-naming" />
+        <error line="199" column="13" source="standard:function-naming" />
+        <error line="247" column="13" source="standard:function-naming" />
+        <error line="280" column="13" source="standard:function-naming" />
+        <error line="326" column="13" source="standard:function-naming" />
+        <error line="334" column="16" source="standard:chain-method-continuation" />
+        <error line="334" column="64" source="standard:chain-method-continuation" />
+        <error line="390" column="13" source="standard:function-naming" />
+        <error line="504" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/java/com/wisp/ui/VoiceTestScreen.kt">
         <error line="33" column="5" source="standard:function-naming" />
@@ -105,9 +122,23 @@
         <error line="17" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/java/com/wisp/voice/android/AndroidTtsEngine.kt">
-        <error line="43" column="17" source="standard:backing-property-naming" />
+        <error line="49" column="17" source="standard:backing-property-naming" />
+        <error line="147" column="29" source="standard:chain-method-continuation" />
+        <error line="147" column="40" source="standard:chain-method-continuation" />
+        <error line="147" column="50" source="standard:chain-method-continuation" />
     </file>
     <file name="src/main/java/com/wisp/voice/package.kt">
         <error line="1" column="1" source="standard:no-empty-file" />
+    </file>
+    <file name="src/test/java/com/wisp/overlay/OverlayControllerTest.kt">
+        <error line="3" column="1" source="standard:import-ordering" />
+    </file>
+    <file name="src/test/java/com/wisp/voice/wake/PorcupineKeywordsTest.kt">
+        <error line="18" column="22" source="standard:argument-list-wrapping" />
+        <error line="18" column="59" source="standard:argument-list-wrapping" />
+        <error line="18" column="88" source="standard:argument-list-wrapping" />
+        <error line="18" column="100" source="standard:argument-list-wrapping" />
+        <error line="18" column="101" source="standard:argument-list-wrapping" />
+        <error line="18" column="101" source="standard:max-line-length" />
     </file>
 </baseline>

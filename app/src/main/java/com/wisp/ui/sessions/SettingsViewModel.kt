@@ -1,18 +1,33 @@
 package com.wisp.ui.sessions
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.wisp.data.AgentModel
+import com.wisp.data.SecretStore
 import com.wisp.data.SettingsStore
+import com.wisp.voice.android.TtsEngineChoice
+import com.wisp.voice.android.TtsEngines
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Exposes the persisted Fast-mode toggle and model selection for the settings UI. */
+/**
+ * Settings-tab state: the persisted Fast-mode toggle, model selection, TTS
+ * engine choice (discovered on-device engines), wake-word keyword, and whether
+ * a Picovoice AccessKey is stored (the key itself never leaves [SecretStore]).
+ */
 @HiltViewModel
 class SettingsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val settings: SettingsStore,
+        private val secrets: SecretStore,
     ) : ViewModel() {
         val fastMode: StateFlow<Boolean> = settings.fastMode
 
@@ -21,4 +36,43 @@ class SettingsViewModel
         val agentModel: StateFlow<AgentModel> = settings.agentModel
 
         fun setAgentModel(model: AgentModel) = settings.setAgentModel(model)
+
+        // --- TTS engine -------------------------------------------------------
+
+        val ttsEngine: StateFlow<String?> = settings.ttsEngine
+
+        fun setTtsEngine(enginePackage: String?) = settings.setTtsEngine(enginePackage)
+
+        private val _ttsEngines = MutableStateFlow<List<TtsEngineChoice>>(emptyList())
+
+        /** Installed engines for the dropdown (loaded once, async). */
+        val ttsEngines: StateFlow<List<TtsEngineChoice>> = _ttsEngines.asStateFlow()
+
+        private val _defaultTtsEngine = MutableStateFlow<String?>(null)
+
+        /** The system default engine package (labels the "System default" row). */
+        val defaultTtsEngine: StateFlow<String?> = _defaultTtsEngine.asStateFlow()
+
+        init {
+            viewModelScope.launch {
+                val discovery = TtsEngines.discover(context)
+                _ttsEngines.value = discovery.engines
+                _defaultTtsEngine.value = discovery.defaultEngine
+            }
+        }
+
+        // --- Wake word ----------------------------------------------------------
+
+        val wakeKeyword: StateFlow<String> = settings.wakeKeyword
+
+        fun setWakeKeyword(keyword: String) = settings.setWakeKeyword(keyword)
+
+        private val _hasPicovoiceKey = MutableStateFlow(secrets.hasPicovoiceKey())
+
+        val hasPicovoiceKey: StateFlow<Boolean> = _hasPicovoiceKey.asStateFlow()
+
+        fun savePicovoiceKey(value: String) {
+            secrets.setPicovoiceKey(value)
+            _hasPicovoiceKey.value = secrets.hasPicovoiceKey()
+        }
     }
