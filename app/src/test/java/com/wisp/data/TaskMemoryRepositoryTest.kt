@@ -19,6 +19,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -82,7 +83,9 @@ class TaskMemoryRepositoryTest {
             )
             repo.onMemoryMutation(createInput(path))
 
-            repo.listRecipes().test {
+            // Room's Flow emits on its query executor (real time); generous
+            // timeout so a slow CI runner doesn't flake it.
+            repo.listRecipes().test(timeout = 10.seconds) {
                 val rows = awaitItem()
                 assertEquals(1, rows.size)
                 assertEquals("YouTube playback speed 2x", rows.single().title)

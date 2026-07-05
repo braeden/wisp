@@ -18,6 +18,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 import java.util.Base64
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -268,7 +269,10 @@ class SessionRepositoryTest {
     @Test
     fun `listSessions emits on change`() =
         runTest {
-            repo.listSessions().test {
+            // Room's Flow emits on its own query executor (real time), not the
+            // runTest virtual clock — a loaded CI runner can exceed Turbine's
+            // ~1s default. A generous timeout keeps this from flaking.
+            repo.listSessions().test(timeout = 10.seconds) {
                 assertEquals(emptyList<SessionEntity>(), awaitItem())
 
                 repo.createSession(title = "A")
